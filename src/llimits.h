@@ -43,9 +43,9 @@ typedef unsigned char lu_byte;
                           : (size_t)(LUA_MAXINTEGER))
 
 
-#define MAX_LUMEM	((lu_mem)(~(lu_mem)0))
+#define MAX_LUMEM	((lu_mem)(~(lu_mem)0))  //最大无符号
 
-#define MAX_LMEM	((l_mem)(MAX_LUMEM >> 1))
+#define MAX_LMEM	((l_mem)(MAX_LUMEM >> 1))  //最大有符号的.
 
 
 #define MAX_INT		INT_MAX  /* maximum value of an int */

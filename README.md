@@ -6,9 +6,39 @@ https://github.com/hilarryxu/lua-5.3-annotated 原始地址.
 我们跟着这个教程走.
 https://blog.csdn.net/initphp/category_9293184.html
 
+
+2022-08-29,11点51
+
+https://github.com/lichuang/Lua-Source-Internal
+这个教程也牛逼
+
+https://www.zhihu.com/people/zhang-da-bao-5/posts
+
+一些关键理解点我直接写这里面.
+1. 我们来理解 #define getstr(ts) \
+    check_exp(sizeof((ts)->extra), cast(char *, (ts)) + sizeof(UTString)) 这份代码.
+    首先添加lua代码结合lua.c里面让他编译之后直接调试lua代码. 
+    启动编译之后控制台输入代码.然后断点在lua.c里面main函数即可.
+    首先理解一下整个流程:
+    lua.c:416行加断点. lua:314行会进入读取一行命令.
+
+
+
+    luaS_newlstr这个代码.进入lstring:192就会发现.字符串写入的位置就是这个getstr的位置.
+    原来是这样.数据就是放在他的struct结构体后面紧跟数据即可.不用定义什么struct啥的!!!!!!!这样做确实非常节省内存.是最优的方法!
+
+
+
+
+
+
 首先教程先直接粗略读一遍做一个整体把握.然后跟着教程顺序研究源码.
 上来就是lua.h 研究里面头文件. 看个大概即可.不是c文件都看个大概.知道都有什么就完事.
-然后lstate.c
+lmem.c   , lmem.h
+然后lstate.c 看个大概.
+lobject.h
+lstring.c
+
 
 
 

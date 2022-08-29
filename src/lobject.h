@@ -3,6 +3,7 @@
 ** Type definitions for Lua objects
 ** See Copyright Notice in lua.h
 */
+#include <stdio.h>
 
 #ifndef lobject_h
 #define lobject_h
@@ -51,6 +52,7 @@
 // 1 - 轻量的C函数
 // 2 - C 闭包
 //---------------------------------------------------------------------
+//这里面<<4.是因为类型一共有8个.正好二进制是1000,所以<<4是最优的不干扰其他数据的偏移量.
 #define LUA_TLCL (LUA_TFUNCTION | (0 << 4)) /* Lua closure */
 #define LUA_TLCF (LUA_TFUNCTION | (1 << 4)) /* light C function */
 #define LUA_TCCL (LUA_TFUNCTION | (2 << 4)) /* C closure */
@@ -121,7 +123,7 @@ struct GCObject
 /*
 ** Union of all Lua values
 */
-typedef union Value
+typedef union Value // 联合体, 这些东西都共享一个内存. 每次只能存一种东西.
 {
   GCObject *gc;    /* collectable objects */
   void *p;         /* light userdata */
@@ -144,7 +146,7 @@ typedef union Value
 typedef struct lua_TValue
 {
   TValuefields;
-} TValue;
+} TValue; // 最终lua里面类型封装是 数据加一个类型标记!
 
 /* macro defining a nil value */
 // 初始化一个 nil 值
@@ -155,10 +157,10 @@ typedef struct lua_TValue
 
 /* raw type tag of a TValue */
 // 获取类型
-#define rttype(o) ((o)->tt_)
+#define rttype(o) ((o)->tt_) // tt 是type tag的缩写.
 
 /* tag with no variants (bits 0-3) */
-#define novariant(x) ((x)&0x0F)
+#define novariant(x) ((x)&0x0F)  //获取tag的基础版本, 因为变化版本bits是4位以上. 看56行.
 
 /* type tag of a TValue (bits 0-3 for tags + variant bits 4-5) */
 // 父类型 + 子类型
@@ -390,10 +392,10 @@ typedef struct lua_TValue
 */
 
 typedef TValue *StkId; /* index to stack elements */
-
+//   TValue 的指针就是stkid 也就是栈的索引. 指向栈里面的内容的地址.
 /*
 ** Header for string value; string bytes follow the end of this structure
-** (aligned according to 'UTString'; see next).
+** (aligned according to 'UTString'; see next). 这个结构存放string的第一个字母的地址.
 */
 
 //---------------------------------------------------------------------
@@ -419,10 +421,10 @@ typedef struct TString
 /*
 ** Ensures that address after this type is always fully aligned.
 */
-// 内存对齐用，其他几节也有类似定义
+// 内存对齐用，其他几节也有类似定义,只是用于计算下面sizeof的.
 typedef union UTString
 {
-  L_Umaxalign dummy; /* ensures maximum alignment for strings */
+  L_Umaxalign dummy; /* ensures maximum alignment for strings */ //保证了cpu读取足够长的内容.加速了读取.因为使用了union来包这个.所以长度取最大长度.也就是统一8字节. 64位的指针是8字节.8字节=64位. 一个字节=8位.
   TString tsv;
 } UTString;
 

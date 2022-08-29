@@ -484,6 +484,8 @@ LUA_API const char *lua_pushlstring (lua_State *L, const char *s, size_t len) {
   api_incr_top(L);
   luaC_checkGC(L);
   lua_unlock(L);
+  char *tmpdebug=cast(char *, (ts)) + sizeof(UTString);
+  char *tmpdebug2 = getstr(ts);
   return getstr(ts);
 }
 

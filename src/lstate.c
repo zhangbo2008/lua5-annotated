@@ -93,15 +93,15 @@ static unsigned int makeseed(lua_State *L)
 */
 void luaE_setdebt(global_State *g, l_mem debt)
 {
-  l_mem tb = gettotalbytes(g);
+  l_mem tb = gettotalbytes(g); //计算g占用的字节数.
   lua_assert(tb > 0);
-  if (debt < tb - MAX_LMEM)
-    debt = tb - MAX_LMEM; /* will make 'totalbytes == MAX_LMEM' */
+  if (debt < tb - MAX_LMEM) // MAX_LMEM 最大的有符号整数.
+    debt = tb - MAX_LMEM;   /* will make 'totalbytes == MAX_LMEM' */
   g->totalbytes = tb - debt;
   g->GCdebt = debt;
 }
 
-CallInfo *luaE_extendCI(lua_State *L)
+CallInfo *luaE_extendCI(lua_State *L) // CI表示callinfo
 {
   CallInfo *ci = luaM_new(L, CallInfo);
   lua_assert(L->ci->next == NULL);
@@ -151,11 +151,11 @@ static void stack_init(lua_State *L1, lua_State *L)
   int i;
   CallInfo *ci;
   /* initialize stack array */
-  L1->stack = luaM_newvector(L, BASIC_STACK_SIZE, TValue);
+  L1->stack = luaM_newvector(L, BASIC_STACK_SIZE, TValue); //返回一个数组.  里面有BASIC_STACK_SIZE 这么多个TValue
   L1->stacksize = BASIC_STACK_SIZE;
   for (i = 0; i < BASIC_STACK_SIZE; i++)
     setnilvalue(L1->stack + i); /* erase new stack */
-  L1->top = L1->stack;
+  L1->top = L1->stack;          //栈顶指针和战地指针. 栈里面最初始的5个位置留给系统预留操作.
   L1->stack_last = L1->stack + L1->stacksize - EXTRA_STACK;
   /* initialize first ci */
   ci = &L1->base_ci;
@@ -184,7 +184,7 @@ static void init_registry(lua_State *L, global_State *g)
 {
   TValue temp;
   /* create registry */
-  Table *registry = luaH_new(L);
+  Table *registry = luaH_new(L); //创建一个字典.
   sethvalue(L, &g->l_registry, registry);
   luaH_resize(L, registry, LUA_RIDX_LAST, 0);
   /* registry[LUA_RIDX_MAINTHREAD] = L */
@@ -237,7 +237,7 @@ static void preinit_thread(lua_State *L, global_State *g)
   L->status = LUA_OK;
   L->errfunc = 0;
 }
-
+//析构掉state
 static void close_state(lua_State *L)
 {
   global_State *g = G(L);
