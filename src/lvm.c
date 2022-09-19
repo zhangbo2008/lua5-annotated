@@ -43,7 +43,7 @@
 */
 #if !defined(l_intfitsf)
 
-/* number of bits in the mantissa of a float */
+/* number of bits in the mantissa尾数 of a float */
 #define NBM		(l_mathlim(MANT_DIG))
 
 /*
@@ -65,7 +65,7 @@
 
 
 
-/*
+/* 吧v里面的值转化成 double.
 ** Try to convert a value to a float. The float case is already handled
 ** by the macro 'tonumber'.
 */
@@ -85,7 +85,7 @@ int luaV_tonumber_ (const TValue *obj, lua_Number *n) {
 }
 
 
-/*
+/* obj 里面的值,存到p里面.
 ** try to convert a value to an integer, rounding according to 'mode':
 ** mode == 0: accepts only integral values
 ** mode == 1: takes the floor of the number
@@ -117,7 +117,7 @@ int luaV_tointeger (const TValue *obj, lua_Integer *p, int mode) {
 }
 
 
-/*
+/* 这个用于for循环作为循环遍历整数来循环.表达是否合理.
 ** Try to convert a 'for' limit to an integer, preserving the
 ** semantics of the loop.
 ** (The following explanation assumes a non-negative step; it is valid
@@ -135,11 +135,11 @@ int luaV_tointeger (const TValue *obj, lua_Integer *p, int mode) {
 static int forlimit (const TValue *obj, lua_Integer *p, lua_Integer step,
                      int *stopnow) {
   *stopnow = 0;  /* usually, let loops run */
-  if (!luaV_tointeger(obj, p, (step < 0 ? 2 : 1))) {  /* not fit in integer? */
+  if (!luaV_tointeger(obj, p, (step < 0 ? 2 : 1))) {  /* not fit in integer? */ //如果obj里面内容转化到p里面失败的话,会进行stop判断.
     lua_Number n;  /* try to convert to float */
-    if (!tonumber(obj, &n)) /* cannot convert to float? */
+    if (!tonumber(obj, &n)) /* cannot convert to float? */// obj转化为整数放到n里面.
       return 0;  /* not a number */
-    if (luai_numlt(0, n)) {  /* if true, float is larger than max integer */
+    if (luai_numlt(0, n)) {  /* if true, float is larger than max integer */ //如果n大于0,那么
       *p = LUA_MAXINTEGER;
       if (step < 0) *stopnow = 1;
     }
@@ -152,7 +152,7 @@ static int forlimit (const TValue *obj, lua_Integer *p, lua_Integer step,
 }
 
 
-/*
+/* 获取t[k]然后value放入slot也放入val
 ** Finish the table access 'val = t[key]'.
 ** if 'slot' is NULL, 't' is not a table; otherwise, 'slot' points to
 ** t[k] entry (which must be nil).
@@ -193,7 +193,7 @@ void luaV_finishget (lua_State *L, const TValue *t, TValue *key, StkId val,
 }
 
 
-/*
+/*  在t里面设置t[key]=val
 ** Finish a table assignment 't[key] = val'.
 ** If 'slot' is NULL, 't' is not a table.  Otherwise, 'slot' points
 ** to the entry 't[key]', or to 'luaO_nilobject' if there is no such
@@ -203,12 +203,12 @@ void luaV_finishget (lua_State *L, const TValue *t, TValue *key, StkId val,
 void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
                      StkId val, const TValue *slot) {
   int loop;  /* counter to avoid infinite loops */
-  for (loop = 0; loop < MAXTAGLOOP; loop++) {
+  for (loop = 0; loop < MAXTAGLOOP; loop++) {//因为有字典的嵌套.和循环字典.所以我们需要一个最大循环来保证不会死循环
     const TValue *tm;  /* '__newindex' metamethod */
     if (slot != NULL) {  /* is 't' a table? */
       Table *h = hvalue(t);  /* save 't' table */
       lua_assert(ttisnil(slot));  /* old value must be nil */
-      tm = fasttm(L, h->metatable, TM_NEWINDEX);  /* get metamethod */
+      tm = fasttm(L, h->metatable, TM_NEWINDEX);  /* get metamethod */ //查询是不是h里面有新索引的方法.如果有我们就用新索引来做set方法.
       if (tm == NULL) {  /* no metamethod? */
         if (slot == luaO_nilobject)  /* no previous entry? */
           slot = luaH_newkey(L, h, key);  /* create one */
@@ -220,7 +220,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
       }
       /* else will try the metamethod */
     }
-    else {  /* not a table; check metamethod */
+    else {  /* not a table; check metamethod */ //tt is nil 用来检测一个东西是不是nil
       if (ttisnil(tm = luaT_gettmbyobj(L, t, TM_NEWINDEX)))
         luaG_typeerror(L, t, "index");
     }
@@ -243,7 +243,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
 ** -larger than zero if 'ls' is smaller-equal-larger than 'rs'.
 ** The code is a little tricky because it allows '\0' in the strings
 ** and it uses 'strcoll' (to respect locales) for each segments
-** of the strings.
+** of the strings. 如果字符串里面有\0会继续比较.265行做偏移量,继续循环即可.
 */
 static int l_strcmp (const TString *ls, const TString *rs) {
   const char *l = getstr(ls);
@@ -367,7 +367,7 @@ int luaV_lessthan (lua_State *L, const TValue *l, const TValue *r) {
     return LTnum(l, r);
   else if (ttisstring(l) && ttisstring(r))  /* both are strings? */
     return l_strcmp(tsvalue(l), tsvalue(r)) < 0;
-  else if ((res = luaT_callorderTM(L, l, r, TM_LT)) < 0)  /* no metamethod? */
+  else if ((res = luaT_callorderTM(L, l, r, TM_LT)) < 0)  /* no metamethod? */   //调用自定义的元方法.
     luaG_ordererror(L, l, r);  /* error */
   return res;
 }
@@ -453,9 +453,9 @@ int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2) {
 /* macro used by 'luaV_concat' to ensure that element at 'o' is a string */
 #define tostring(L,o)  \
 	(ttisstring(o) || (cvt2str(o) && (luaO_tostring(L, o), 1)))
-
+//luaO_tostring 这个函数没有返回值.所以后面加一个逗号1,来保证逻辑运算可以计算下去.
 #define isemptystr(o)	(ttisshrstring(o) && tsvalue(o)->shrlen == 0)
-
+// 把栈top-n到top-1的字符串租个拷贝到buff里面.
 /* copy strings in stack from top - n up to top - 1 to buffer */
 static void copy2buff (StkId top, int n, char *buff) {
   size_t tl = 0;  /* size already copied */
@@ -467,7 +467,7 @@ static void copy2buff (StkId top, int n, char *buff) {
 }
 
 
-/*
+/*// 把字符串top-totaol 到top-1 concat上.结果放到栈顶.
 ** Main operation for concatenation: concat 'total' values in the stack,
 ** from 'L->top - total' up to 'L->top - 1'.
 */
@@ -477,17 +477,17 @@ void luaV_concat (lua_State *L, int total) {
     StkId top = L->top;
     int n = 2;  /* number of elements handled in this pass (at least 2) */
     if (!(ttisstring(top-2) || cvt2str(top-2)) || !tostring(L, top-1))
-      luaT_trybinTM(L, top-2, top-1, top-2, TM_CONCAT);
+      luaT_trybinTM(L, top-2, top-1, top-2, TM_CONCAT);// 如果有一个不是字符串那么就进行原方法来进行合并.
     else if (isemptystr(top - 1))  /* second operand is empty? */
       cast_void(tostring(L, top - 2));  /* result is first operand */
     else if (isemptystr(top - 2)) {  /* first operand is an empty string? */
       setobjs2s(L, top - 2, top - 1);  /* result is second op. */
     }
-    else {
+    else {//处理2个非空字符串.
       /* at least two non-empty string values; get as many as possible */
       size_t tl = vslen(top - 1);
       TString *ts;
-      /* collect total length and number of strings */
+      /* collect total length and number of strings */ //计算所有字符串的长度和.
       for (n = 1; n < total && tostring(L, top - n - 1); n++) {
         size_t l = vslen(top - n - 1);
         if (l >= (MAX_SIZE/sizeof(char)) - tl)
@@ -504,7 +504,7 @@ void luaV_concat (lua_State *L, int total) {
         copy2buff(top, n, getstr(ts));
       }
       setsvalue2s(L, top - n, ts);  /* create result */
-    }
+    }//处理了n个,所以下面指针移动一下. 上面把结果放到top-n了.所以我们top-n+1才行.因为top始终指向的是当前处理东西的指针加1!!!!!!!!!!
     total -= n-1;  /* got 'n' strings to create 1 new */
     L->top -= n-1;  /* popped 'n' strings and pushed one */
   } while (total > 1);  /* repeat until only 1 result left */
@@ -512,12 +512,12 @@ void luaV_concat (lua_State *L, int total) {
 
 
 /*
-** Main operation 'ra' = #rb'.
+** Main operation 'ra' = #rb'.   //# 在lua里面表示字符串取长度.
 */
 void luaV_objlen (lua_State *L, StkId ra, const TValue *rb) {
   const TValue *tm;
   switch (ttype(rb)) {
-    case LUA_TTABLE: {
+    case LUA_TTABLE: {//计算哈小表的大小.
       Table *h = hvalue(rb);
       tm = fasttm(L, h->metatable, TM_LEN);
       if (tm) break;  /* metamethod? break switch to call it */
@@ -539,7 +539,7 @@ void luaV_objlen (lua_State *L, StkId ra, const TValue *rb) {
       break;
     }
   }
-  luaT_callTM(L, tm, rb, rb, ra, 1);
+  luaT_callTM(L, tm, rb, rb, ra, 1);// 为了536行进行后续处理.
 }
 
 
@@ -550,7 +550,7 @@ void luaV_objlen (lua_State *L, StkId ra, const TValue *rb) {
 ** otherwise 'floor(q) == trunc(q) - 1'.
 */
 lua_Integer luaV_div (lua_State *L, lua_Integer m, lua_Integer n) {
-  if (l_castS2U(n) + 1u <= 1u) {  /* special cases: -1 or 0 */
+  if (l_castS2U(n) + 1u <= 1u) {  /* special cases: -1 or 0 */ //如果n是-1或者0.
     if (n == 0)
       luaG_runerror(L, "attempt to divide by zero");
     return intop(-, 0, m);   /* n==-1; avoid overflow with 0x80000...//-1 */
@@ -606,7 +606,7 @@ lua_Integer luaV_shiftl (lua_Integer x, lua_Integer y) {
 ** check whether cached closure in prototype 'p' may be reused, that is,
 ** whether there is a cached closure with the same upvalues needed by
 ** new closure to be created.
-*/
+*/  //是否p里面的cache可以被重新使用.  encup 是upvalues的一个指针.
 static LClosure *getcached (Proto *p, UpVal **encup, StkId base) {
   LClosure *c = p->cache;
   if (c != NULL) {  /* is there a cached closure? */
@@ -614,16 +614,16 @@ static LClosure *getcached (Proto *p, UpVal **encup, StkId base) {
     Upvaldesc *uv = p->upvalues;
     int i;
     for (i = 0; i < nup; i++) {  /* check whether it has right upvalues */
-      TValue *v = uv[i].instack ? base + uv[i].idx : encup[uv[i].idx]->v;
-      if (c->upvals[i]->v != v)
+      TValue *v = uv[i].instack ? base + uv[i].idx : encup[uv[i].idx]->v; //如果upvalue在站上.那么就读取他的值.  不在站上那么就 使用encup里面进行查找value.
+      if (c->upvals[i]->v != v)//查询c这个闭包的upvalue和站里面在使用的里面是否相同.
         return NULL;  /* wrong upvalue; cannot reuse closure */
     }
   }
   return c;  /* return cached closure (or NULL if no cached closure) */
 }
 
-
-/*
+// 非常关键的函数!!!!!!!!!!!!!!!!!他里面定义了闭包是如何在站上安排的.
+/* 创建函数放到ra参数上.  这个方法很关键!!!!!!!  首先通过原型p生成函数的入参数量出参数量,和闭包函数.然后把函数放ra上. 参数upvalue放ncl.upvals里面.
 ** create a new Lua closure, push it in the stack, and initialize
 ** its upvalues. Note that the closure is not cached if prototype is
 ** already black (which means that 'cache' was already cleared by the
@@ -636,11 +636,11 @@ static void pushclosure (lua_State *L, Proto *p, UpVal **encup, StkId base,
   int i;
   LClosure *ncl = luaF_newLclosure(L, nup);
   ncl->p = p;
-  setclLvalue(L, ra, ncl);  /* anchor new closure in stack */
+  setclLvalue(L, ra, ncl);  /* anchor new closure in stack */ //放到ra上.
   for (i = 0; i < nup; i++) {  /* fill in its upvalues */
     if (uv[i].instack)  /* upvalue refers to local variable? */
-      ncl->upvals[i] = luaF_findupval(L, base + uv[i].idx);
-    else  /* get upvalue from enclosing function */
+      ncl->upvals[i] = luaF_findupval(L, base + uv[i].idx);  //uv[i]是第i个upvalue,然后我们需要在站上的openupvalue表里面搜索这个值把他重用到这里.这样可以节省内存开销.不是函数的每一个入参都申请的.因为函数的参数有大量互相共享的.可以服用.在站上就这样用
+    else  /* get upvalue from enclosing function */ // 从闭包这个函数的入参来找到这个值. 不在站上那么就一定再encup,这个传入的参数里面.
       ncl->upvals[i] = encup[uv[i].idx];
     ncl->upvals[i]->refcount++;
     /* new closure is white, so we do not need a barrier here */
@@ -650,13 +650,13 @@ static void pushclosure (lua_State *L, Proto *p, UpVal **encup, StkId base,
 }
 
 
-/*
+/* 携程中断时候结束运行op操作.
 ** finish execution of an opcode interrupted by an yield
 */
 void luaV_finishOp (lua_State *L) {
   CallInfo *ci = L->ci;
   StkId base = ci->u.l.base;
-  Instruction inst = *(ci->u.l.savedpc - 1);  /* interrupted instruction */
+  Instruction inst = *(ci->u.l.savedpc - 1);  /* 为什么-1?????应该也是他指向下一个指令,所以最后一个指令是-1的interrupted instruction */
   OpCode op = GET_OPCODE(inst);
   switch (op) {  /* finish its execution */
     case OP_ADD: case OP_SUB: case OP_MUL: case OP_DIV: case OP_IDIV:
@@ -665,13 +665,13 @@ void luaV_finishOp (lua_State *L) {
     case OP_UNM: case OP_BNOT: case OP_LEN:
     case OP_GETTABUP: case OP_GETTABLE: case OP_SELF: {
       setobjs2s(L, base + GETARG_A(inst), --L->top);
-      break;
+      break;//把栈顶元素放到ra寄存器上.
     }
     case OP_LE: case OP_LT: case OP_EQ: {
-      int res = !l_isfalse(L->top - 1);
+      int res = !l_isfalse(L->top - 1);//在栈顶取结果.
       L->top--;
       if (ci->callstatus & CIST_LEQ) {  /* "<=" using "<" instead? */
-        lua_assert(op == OP_LE);
+        lua_assert(op == OP_LE);     //用<=来替代<
         ci->callstatus ^= CIST_LEQ;  /* clear mark */
         res = !res;  /* negate result */
       }
@@ -734,11 +734,11 @@ void luaV_finishOp (lua_State *L) {
 	ISK(GETARG_C(i)) ? k+INDEXK(GETARG_C(i)) : base+GETARG_C(i))
 
 
-/* execute a jump instruction */
+/* execute a jump instruction */ //运行jump opt码.   i是opt,  e是error码 // 算法就是先拿到ra寄存器的偏移量.  ci->u.l.base + a - 1 是因为upvalue是在
 #define dojump(ci,i,e) \
   { int a = GETARG_A(i); \
     if (a != 0) luaF_close(L, ci->u.l.base + a - 1); \
-    ci->u.l.savedpc += GETARG_sBx(i) + e; }
+    ci->u.l.savedpc += GETARG_sBx(i) + e; }//挑战到的地址写入下一个跳转位置指针. 为什么要-1??????????????????我理解是.首先看a=0时候,那么base=ra. jump之后吓一条命令会重新配置ra.所以不干扰.下个指令还是从base开始算.如果a=1,那么base+a-1就是fun的地址.也就是oldtop,ra是第一个压入变量.
 
 /* for test instructions, execute the jump instruction that follows it */
 #define donextjump(ci)	{ i = *ci->u.l.savedpc; dojump(ci, i, 1); }
@@ -752,7 +752,7 @@ void luaV_finishOp (lua_State *L) {
            luai_threadyield(L); }
 
 
-/* fetch an instruction and prepare its execution */
+/* fetch an instruction and prepare its execution */ //有hook就调用traceexec,获取i里面的内容, 他的寄存器地址RA给ra
 #define vmfetch()	{ \
   i = *(ci->u.l.savedpc++); \
   if (L->hookmask & (LUA_MASKLINE | LUA_MASKCOUNT)) \
@@ -767,7 +767,7 @@ void luaV_finishOp (lua_State *L) {
 #define vmbreak		break
 
 
-/*
+/* 获取t[k] 放到v里面.也放到slot里面.
 ** copy of 'luaV_gettable', but protecting the call to potential
 ** metamethod (which can reallocate the stack)
 */
@@ -776,13 +776,13 @@ void luaV_finishOp (lua_State *L) {
   else Protect(luaV_finishget(L,t,k,v,slot)); }
 
 
-/* same for 'luaV_settable' */
+/* same for 'luaV_settable' */ //设置t[k]=v
 #define settableProtected(L,t,k,v) { const TValue *slot; \
   if (!luaV_fastset(L,t,k,slot,luaH_get,v)) \
     Protect(luaV_finishset(L,t,k,v,slot)); }
 
 
-
+//操作码执行函数, vm最核心的部分.
 void luaV_execute (lua_State *L) {
   CallInfo *ci = L->ci;
   LClosure *cl;
@@ -792,7 +792,7 @@ void luaV_execute (lua_State *L) {
  newframe:  /* reentry point when frame changes (call/return) */
   lua_assert(ci == L->ci);
   cl = clLvalue(ci->func);  /* local reference to function's closure */
-  k = cl->p->k;  /* local reference to function's constant table */
+  k = cl->p->k;  /* local reference to function's constant table */ //取出常数. 常数表.
   base = ci->u.l.base;  /* local copy of function's base */
   /* main loop of interpreter */
   for (;;) {
@@ -800,11 +800,11 @@ void luaV_execute (lua_State *L) {
     StkId ra;
     vmfetch();
     vmdispatch (GET_OPCODE(i)) {
-      vmcase(OP_MOVE) {
+      vmcase(OP_MOVE) {  //跟cpu寄存器一样.操作的返回值统一用ra来存.
         setobjs2s(L, ra, RB(i));
         vmbreak;
       }
-      vmcase(OP_LOADK) {
+      vmcase(OP_LOADK) {//指令的处理都在i里面.
         TValue *rb = k + GETARG_Bx(i);
         setobj2s(L, ra, rb);
         vmbreak;
@@ -1176,7 +1176,7 @@ void luaV_execute (lua_State *L) {
       vmcase(OP_RETURN) {
         int b = GETARG_B(i);
         if (cl->p->sizep > 0) luaF_close(L, base);
-        b = luaD_poscall(L, ci, ra, (b != 0 ? b - 1 : cast_int(L->top - ra)));
+        b = luaD_poscall(L, ci, ra, (b != 0 ? b - 1 : cast_int(L->top - ra))); //返回值在c->func上.
         if (ci->callstatus & CIST_FRESH)  /* local 'ci' still from callee */
           return;  /* external invocation: return */
         else {  /* invocation via reentry: continue execution */

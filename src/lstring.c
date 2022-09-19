@@ -75,8 +75,8 @@ void luaS_resize(lua_State *L, int newsize)
     for (i = tb->size; i < newsize; i++)
       tb->hash[i] = NULL;
   }
-  for (i = 0; i < tb->size; i++)
-  { /* rehash */
+  for (i = 0; i < tb->size; i++)//如果存在旧的数据. 那么全都需要重新计算一下,因为哈希表大小变了85行就需要重新算mod
+  { /* rehash */  
     TString *p = tb->hash[i];
     tb->hash[i] = NULL;
     while (p)
@@ -119,7 +119,7 @@ void luaS_init(lua_State *L)
 {
   global_State *g = G(L);
   int i, j;
-  luaS_resize(L, MINSTRTABSIZE); /* initial size of string table */
+  luaS_resize(L, MINSTRTABSIZE); /* initial size of string table */// MINSTRTABSIZE 最小str table size
   /* pre-create memory-error message */
   g->memerrmsg = luaS_newliteral(L, MEMERRMSG);
   luaC_fix(L, obj2gco(g->memerrmsg)); /* it should never be collected */
@@ -159,7 +159,7 @@ void luaS_remove(lua_State *L, TString *ts)
   while (*p != ts) /* find previous element */
     p = &(*p)->u.hnext;
   *p = (*p)->u.hnext; /* remove element from its list */
-  tb->nuse--;
+  tb->nuse--; //nuse: number of use
 }
 
 /*
@@ -168,7 +168,7 @@ void luaS_remove(lua_State *L, TString *ts)
 static TString *internshrstr(lua_State *L, const char *str, size_t l)
 {
   TString *ts;
-  global_State *g = G(L);
+  global_State *g = G(L); // global里面搜.
   unsigned int h = luaS_hash(str, l, g->seed);//先算字符串str的哈希
   TString **list = &g->strt.hash[lmod(h, g->strt.size)];
   lua_assert(str != NULL); /* otherwise 'memcmp'/'memcpy' are undefined */
@@ -189,7 +189,7 @@ static TString *internshrstr(lua_State *L, const char *str, size_t l)
     list = &g->strt.hash[lmod(h, g->strt.size)]; /* recompute with new size */
   }//创建新的.
   ts = createstrobj(L, l, LUA_TSHRSTR, h);
-  memcpy(getstr(ts), str, l * sizeof(char));
+  memcpy(getstr(ts), str, l * sizeof(char));//把字符串拷贝到数据区域.!!!!!!!!!!
   ts->shrlen = cast_byte(l);
   ts->u.hnext = *list;
   *list = ts;

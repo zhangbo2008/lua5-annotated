@@ -40,7 +40,7 @@ enum RESERVED {
 #define NUM_RESERVED	(cast(int, TK_WHILE-FIRST_RESERVED+1))
 
 
-typedef union {
+typedef union {//一个共同体里面纯具体信息. 3种.  第一个是double, 第二个int 第三个字符串.
   lua_Number r;
   lua_Integer i;
   TString *ts;
@@ -48,31 +48,31 @@ typedef union {
 
 
 typedef struct Token {
-  int token;
-  SemInfo seminfo;
+  int token;     //token的类别
+  SemInfo seminfo;//token的具体信息
 } Token;
 
 
 /* state of the lexer plus state of the parser when shared by all
    functions */
-typedef struct LexState {
-  int current;  /* current character (charint) */
-  int linenumber;  /* input line counter */
-  int lastline;  /* line of last token 'consumed' */
-  Token t;  /* current token */
-  Token lookahead;  /* look ahead token */
-  struct FuncState *fs;  /* current function (parser) */
-  struct lua_State *L;
-  ZIO *z;  /* input stream */
-  Mbuffer *buff;  /* buffer for tokens */
-  Table *h;  /* to avoid collection/reuse strings */
+typedef struct LexState
+{
+  int current;          /* 解析字符指针 current character (charint) */
+  int linenumber;       /* 行数计数器 input line counter */
+  int lastline;         /* 最后一行 line of last token 'consumed' */
+  Token t;              /* 当前Token current token */
+  Token lookahead;      /* 头部Token look ahead token */
+  struct FuncState *fs; /* 当前解析的方法 current function (parser) */
+  struct lua_State *L;  // Lua栈
+  ZIO *z;               /* io输入流 input stream */
+  Mbuffer *buff;        /* buffer for tokens */
+  Table *h;             /* to avoid collection/reuse strings */
   struct Dyndata *dyd;  /* dynamic structures used by the parser */
-  TString *source;  /* current source name */
-  TString *envn;  /* environment variable name */
+  TString *source;      /* 当前源名称 current source name */
+  TString *envn;        /* 环境变量 environment variable name */
 } LexState;
 
-
-LUAI_FUNC void luaX_init (lua_State *L);
+LUAI_FUNC void luaX_init(lua_State *L);
 LUAI_FUNC void luaX_setinput (lua_State *L, LexState *ls, ZIO *z,
                               TString *source, int firstchar);
 LUAI_FUNC TString *luaX_newstring (LexState *ls, const char *str, size_t l);

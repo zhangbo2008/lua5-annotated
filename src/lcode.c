@@ -32,7 +32,7 @@
 /* Maximum number of registers in a Lua function (must fit in 8 bits) */
 #define MAXREGS		255
 
-
+//用来判断是一个变量还是常数.
 #define hasjumps(e)	((e)->t != (e)->f)
 
 
@@ -240,7 +240,7 @@ static void patchlistaux (FuncState *fs, int list, int vtarget, int reg,
 ** jumps
 */
 static void dischargejpc (FuncState *fs) {
-  patchlistaux(fs, fs->jpc, fs->pc, NO_REG, fs->pc);
+  patchlistaux(fs, fs->jpc, fs->pc, NO_REG, fs->pc);//设置代码跳转的.
   fs->jpc = NO_JUMP;
 }
 
@@ -286,7 +286,7 @@ void luaK_patchclose (FuncState *fs, int list, int level) {
 }
 
 
-/*
+/* 指令i发送给pc
 ** Emit instruction 'i', checking for array sizes and saving also its
 ** line information. Return 'i' position.
 */
@@ -295,7 +295,7 @@ static int luaK_code (FuncState *fs, Instruction i) {
   dischargejpc(fs);  /* 'pc' will change */
   /* put new instruction in code array */
   luaM_growvector(fs->ls->L, f->code, fs->pc, f->sizecode, Instruction,
-                  MAX_INT, "opcodes");
+                  MAX_INT, "opcodes"); //拓展内存.让他足够放这个i指令. 扩容sizecode  fs.pc是当前代码位置.
   f->code[fs->pc] = i;
   /* save corresponding line information */
   luaM_growvector(fs->ls->L, f->lineinfo, fs->pc, f->sizelineinfo, int,
@@ -325,7 +325,7 @@ int luaK_codeABx (FuncState *fs, OpCode o, int a, unsigned int bc) {
   lua_assert(getOpMode(o) == iABx || getOpMode(o) == iAsBx);
   lua_assert(getCMode(o) == OpArgN);
   lua_assert(a <= MAXARG_A && bc <= MAXARG_Bx);
-  return luaK_code(fs, CREATE_ABx(o, a, bc));
+  return luaK_code(fs, CREATE_ABx(o, a, bc));// CREATE_ABx 通过宏函数把数据拼接成指令instruction.
 }
 
 
@@ -338,14 +338,14 @@ static int codeextraarg (FuncState *fs, int a) {
 }
 
 
-/*
+/*  lua_code是执行一个instruction指令的代码实现. 这个luaK_codek 执行一个加载常数的指令. k放入reg里面.
 ** Emit a "load constant" instruction, using either 'OP_LOADK'
 ** (if constant index 'k' fits in 18 bits) or an 'OP_LOADKX'
 ** instruction with "extra argument".
 */
 int luaK_codek (FuncState *fs, int reg, int k) {
   if (k <= MAXARG_Bx)
-    return luaK_codeABx(fs, OP_LOADK, reg, k);
+    return luaK_codeABx(fs, OP_LOADK, reg, k);//bx表示后面2个部分都看做b. 也就是bc看做b就行了.
   else {
     int p = luaK_codeABx(fs, OP_LOADKX, reg, 0);
     codeextraarg(fs, k);
@@ -356,7 +356,7 @@ int luaK_codek (FuncState *fs, int reg, int k) {
 
 /*
 ** Check register-stack level, keeping track of its maximum size
-** in field 'maxstacksize'
+** in field 'maxstacksize'  //拓展栈的大小.
 */
 void luaK_checkstack (FuncState *fs, int n) {
   int newstack = fs->freereg + n;
@@ -370,7 +370,7 @@ void luaK_checkstack (FuncState *fs, int n) {
 
 
 /*
-** Reserve 'n' registers in register stack
+** Reserve 'n' registers in register stack 存储n个寄存器再斩里面.
 */
 void luaK_reserveregs (FuncState *fs, int n) {
   luaK_checkstack(fs, n);
@@ -380,7 +380,7 @@ void luaK_reserveregs (FuncState *fs, int n) {
 
 /*
 ** Free register 'reg', if it is neither a constant index nor
-** a local variable.
+** a local variable.  // 如果reg位置的不是一个常数也不是变量的话就析构掉了.
 )
 */
 static void freereg (FuncState *fs, int reg) {
@@ -395,7 +395,7 @@ static void freereg (FuncState *fs, int reg) {
 ** Free register used by expression 'e' (if any)
 */
 static void freeexp (FuncState *fs, expdesc *e) {
-  if (e->k == VNONRELOC)
+  if (e->k == VNONRELOC)//如果保存在寄存器中了,就西狗叼寄存器.
     freereg(fs, e->u.info);
 }
 
@@ -424,7 +424,7 @@ static void freeexps (FuncState *fs, expdesc *e1, expdesc *e2) {
 ** and try to reuse constants. Because some values should not be used
 ** as keys (nil cannot be a key, integer keys can collapse with float
 ** keys), the caller must provide a useful 'key' for indexing the cache.
-*/
+*/  //add constant 所以叫addk
 static int addk (FuncState *fs, TValue *key, TValue *v) {
   lua_State *L = fs->ls->L;
   Proto *f = fs->f;
@@ -438,15 +438,15 @@ static int addk (FuncState *fs, TValue *key, TValue *v) {
       return k;  /* reuse index */
   }
   /* constant not found; create a new entry */
-  oldsize = f->sizek;
-  k = fs->nk;
+  oldsize = f->sizek;  //有多少个常数
+  k = fs->nk;    // 有多少常数. 在2个地方都更新.
   /* numerical value does not need GC barrier;
      table has no metatable, so it does not need to invalidate cache */
-  setivalue(idx, k);
-  luaM_growvector(L, f->k, k, f->sizek, TValue, MAXARG_Ax, "constants");
+  setivalue(idx, k);// 放入431行的缓存表里面.
+  luaM_growvector(L, f->k, k, f->sizek, TValue, MAXARG_Ax, "constants");//常数数组进行拓展.
   while (oldsize < f->sizek) setnilvalue(&f->k[oldsize++]);
-  setobj(L, &f->k[k], v);
-  fs->nk++;
+  setobj(L, &f->k[k], v);//把v加入常数数组里面.
+  fs->nk++;  //fs也更新.
   luaC_barrier(L, f, v);
   return k;
 }
@@ -457,7 +457,7 @@ static int addk (FuncState *fs, TValue *key, TValue *v) {
 */
 int luaK_stringK (FuncState *fs, TString *s) {
   TValue o;
-  setsvalue(fs->ls->L, &o, s);
+  setsvalue(fs->ls->L, &o, s); //s放入o里面.
   return addk(fs, &o, &o);  /* use string itself as key */
 }
 
@@ -466,12 +466,12 @@ int luaK_stringK (FuncState *fs, TString *s) {
 ** Add an integer to list of constants and return its index.
 ** Integers use userdata as keys to avoid collision with floats with
 ** same value; conversion to 'void*' is used only for hashing, so there
-** are no "precision" problems.
+** are no "precision" problems. //把一个整数加入常数书里面然后返回这个整数在数组里面的索引.
 */
 int luaK_intK (FuncState *fs, lua_Integer n) {
   TValue k, o;
   setpvalue(&k, cast(void*, cast(size_t, n)));
-  setivalue(&o, n);
+  setivalue(&o, n);  
   return addk(fs, &k, &o);
 }
 
@@ -551,7 +551,7 @@ void luaK_setoneret (FuncState *fs, expdesc *e) {
 
 
 /*
-** Ensure that expression 'e' is not a variable.
+** Ensure that expression 'e' is not a variable.    让e不在是一个变量.
 */
 void luaK_dischargevars (FuncState *fs, expdesc *e) {
   switch (e->k) {
@@ -704,7 +704,7 @@ void luaK_exp2nextreg (FuncState *fs, expdesc *e) {
   luaK_dischargevars(fs, e);
   freeexp(fs, e);
   luaK_reserveregs(fs, 1);
-  exp2reg(fs, e, fs->freereg - 1);
+  exp2reg(fs, e, fs->freereg - 1);//表达式放入reg里面.
 }
 
 
@@ -749,7 +749,7 @@ void luaK_exp2val (FuncState *fs, expdesc *e) {
 }
 
 
-/*
+/* 把表达式切换成RK模式.
 ** Ensures final expression result is in a valid R/K index
 ** (that is, it is either in a register or in 'k' with an index
 ** in the range of R/K indices).
@@ -763,11 +763,11 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
     case VNIL: e->u.info = nilK(fs); goto vk;
     case VKINT: e->u.info = luaK_intK(fs, e->u.ival); goto vk;
     case VKFLT: e->u.info = luaK_numberK(fs, e->u.nval); goto vk;
-    case VK:
+    case VK:  //VK表示是一个常数.
      vk:
       e->k = VK;
       if (e->u.info <= MAXINDEXRK)  /* constant fits in 'argC'? */
-        return RKASK(e->u.info);
+        return RKASK(e->u.info);//如果索引能在B里面放下,那么就返回他的编码.
       else break;
     default: break;
   }
@@ -947,7 +947,7 @@ void luaK_indexed (FuncState *fs, expdesc *t, expdesc *k) {
   lua_assert(!hasjumps(t) && (vkisinreg(t->k) || t->k == VUPVAL));
   t->u.ind.t = t->u.info;  /* register or upvalue index */
   t->u.ind.idx = luaK_exp2RK(fs, k);  /* R/K index for key */
-  t->u.ind.vt = (t->k == VUPVAL) ? VUPVAL : VLOCAL;
+  t->u.ind.vt = (t->k == VUPVAL) ? VUPVAL : VLOCAL; //记录他是否是upval还是local value
   t->k = VINDEXED;
 }
 
@@ -1081,7 +1081,7 @@ void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
 
 /*
 ** Process 1st operand 'v' of binary operation 'op' before reading
-** 2nd operand.
+** 2nd operand.  ///运行v的操作.
 */
 void luaK_infix (FuncState *fs, BinOpr op, expdesc *v) {
   switch (op) {

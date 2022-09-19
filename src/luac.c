@@ -180,7 +180,7 @@ static int pmain(lua_State *L)
   {
     const char *filename = IS("-") ? NULL : argv[i];
     if (luaL_loadfile(L, filename) != LUA_OK)
-      fatal(lua_tostring(L, -1));
+      fatal(lua_tostring(L, -1));//fffffffffff
   }
   f = combine(L, argc);
   if (listing)

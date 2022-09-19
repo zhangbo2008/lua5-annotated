@@ -667,13 +667,13 @@ static int errfile (lua_State *L, const char *what, int fnameindex) {
 
 
 static int skipBOM (LoadF *lf) {
-  const char *p = "\xEF\xBB\xBF";  /* UTF-8 BOM mark */
+  const char *p = "\xEF\xBB\xBF";  /* UTF-8 BOM mark */// / linux下面可能有bom标注.就是16进制的efbbbf
   int c;
   lf->n = 0;
   do {
     c = getc(lf->f);
     if (c == EOF || c != *(const unsigned char *)p++) return c;
-    lf->buff[lf->n++] = c;  /* to be read by the parser */
+    lf->buff[lf->n++] = c;  /* to be read by the parser */  //通过lf->n来跟踪行号.
   } while (*p != '\0');
   lf->n = 0;  /* prefix matched; discard it */
   return getc(lf->f);  /* return next character */
@@ -688,7 +688,7 @@ static int skipBOM (LoadF *lf) {
 ** a first-line comment).
 */
 static int skipcomment (LoadF *lf, int *cp) {
-  int c = *cp = skipBOM(lf);
+  int c = *cp = skipBOM(lf);//跳过开头的bom标志. 返回第一个合法字符.
   if (c == '#') {  /* first line is a comment (Unix exec. file)? */
     do {  /* skip first line */
       c = getc(lf->f);
@@ -702,7 +702,7 @@ static int skipcomment (LoadF *lf, int *cp) {
 
 LUALIB_API int luaL_loadfilex (lua_State *L, const char *filename,
                                              const char *mode) {
-  LoadF lf;
+  LoadF lf;//loadF才是最后本质要读到的data数据.也就是脚本文件.
   int status, readstatus;
   int c;
   int fnameindex = lua_gettop(L) + 1;  /* index of filename on the stack */
@@ -723,7 +723,7 @@ LUALIB_API int luaL_loadfilex (lua_State *L, const char *filename,
     skipcomment(&lf, &c);  /* re-read initial portion */
   }
   if (c != EOF)
-    lf.buff[lf.n++] = c;  /* 'c' is the first character of the stream */
+    lf.buff[lf.n++] = c;  /* 'c' is the first character of the stream *///写入第一个字符.   //上面这段来初始化好lf数据.
   status = lua_load(L, getF, &lf, lua_tostring(L, -1), mode);
   readstatus = ferror(lf.f);
   if (filename) fclose(lf.f);  /* close file (even in case of errors) */
@@ -926,7 +926,7 @@ LUALIB_API void luaL_openlib (lua_State *L, const char *libname,
 #endif
 /* }====================================================== */
 
-/*
+/* upvalue是在函数之前压入的.
 ** set functions from list 'l' into table at top - 'nup'; each
 ** function gets the 'nup' elements at the top as upvalues.
 ** Returns with only the table at the stack.
@@ -936,9 +936,9 @@ LUALIB_API void luaL_setfuncs (lua_State *L, const luaL_Reg *l, int nup) {
   for (; l->name != NULL; l++) {  /* fill the table with given functions */
     int i;
     for (i = 0; i < nup; i++)  /* copy upvalues to the top */
-      lua_pushvalue(L, -nup);
+      lua_pushvalue(L, -nup); //对于每一个函数,先压入他的upvalue,也就是等价于把站上的数据多拷贝一份再放到站上!
     lua_pushcclosure(L, l->func, nup);  /* closure with those upvalues */
-    lua_setfield(L, -(nup + 2), l->name);
+    lua_setfield(L, -(nup + 2), l->name);// 函数压入注册表[2]里面
   }
   lua_pop(L, nup);  /* remove upvalues */
 }
@@ -946,17 +946,17 @@ LUALIB_API void luaL_setfuncs (lua_State *L, const luaL_Reg *l, int nup) {
 
 /*
 ** ensure that stack[idx][fname] has a table and push that table
-** into the stack
+** into the stack 找到这个table  stack[idx][fname]然后放入栈里面.
 */
 LUALIB_API int luaL_getsubtable (lua_State *L, int idx, const char *fname) {
   if (lua_getfield(L, idx, fname) == LUA_TTABLE)
     return 1;  /* table already there */
   else {
-    lua_pop(L, 1);  /* remove previous result */
+    lua_pop(L, 1);  /* remove previous result */ //扔掉栈顶.重新简历一个table放入值.
     idx = lua_absindex(L, idx);
-    lua_newtable(L);
-    lua_pushvalue(L, -1);  /* copy to be left at top */
-    lua_setfield(L, idx, fname);  /* assign new table to field */
+    lua_newtable(L); //新建一个table放到栈顶.
+    lua_pushvalue(L, -1);  /* copy to be left at top */ //把栈顶的copy,顶指针加一.粘贴到栈顶.等于多复制了一遍.
+    lua_setfield(L, idx, fname);  /* assign new table to field */ // 把栈顶这个表赋值给注册表的fname字段.
     return 0;  /* false, because did not find table there */
   }
 }
@@ -971,10 +971,10 @@ LUALIB_API int luaL_getsubtable (lua_State *L, int idx, const char *fname) {
 LUALIB_API void luaL_requiref (lua_State *L, const char *modname,
                                lua_CFunction openf, int glb) {
   luaL_getsubtable(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
-  lua_getfield(L, -1, modname);  /* LOADED[modname] */
+  lua_getfield(L, -1, modname);  /* LOADED[modname] */ //读取这个表,放到栈顶.
   if (!lua_toboolean(L, -1)) {  /* package not already loaded? */
     lua_pop(L, 1);  /* remove field */
-    lua_pushcfunction(L, openf);
+    lua_pushcfunction(L, openf);//加载库包也是压栈调用.
     lua_pushstring(L, modname);  /* argument to open function */
     lua_call(L, 1, 1);  /* call 'openf' to open module */
     lua_pushvalue(L, -1);  /* make copy of module (call result) */

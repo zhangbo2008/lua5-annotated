@@ -39,7 +39,7 @@
 
 #define tonumber(o,n) \
 	(ttisfloat(o) ? (*(n) = fltvalue(o), 1) : luaV_tonumber_(o,n))
-
+// 这里面使用了 逗号表达试.先把返回值绑定到i上,然后返回1,如果错误就返回luaV_tointeger这个强制转化函数.
 #define tointeger(o,i) \
     (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointeger(o,i,LUA_FLOORN2I))
 
@@ -48,7 +48,7 @@
 #define luaV_rawequalobj(t1,t2)		luaV_equalobj(NULL,t1,t2)
 
 
-/*
+/*  获取t[k]放入slot中.
 ** fast track for 'gettable': if 't' is a table and 't[k]' is not nil,
 ** return 1 with 'slot' pointing to 't[k]' (final result).  Otherwise,
 ** return 0 (meaning it will have to check metamethod) with 'slot'
@@ -69,7 +69,7 @@
   else luaV_finishget(L,t,k,v,slot); }
 
 
-/*
+/* 设置t[k]=v , slot指针指向value , 设置成功返回1,否则反0
 ** Fast track for set table. If 't' is a table and 't[k]' is not nil,
 ** call GC barrier, do a raw 't[k]=v', and return true; otherwise,
 ** return false with 'slot' equal to NULL (if 't' is not a table) or

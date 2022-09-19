@@ -44,7 +44,7 @@ typedef enum {
 } TMS;
 
 
-
+// 利用了表里面的缓存机制. et.flags里面有缓存.所以会加速.所以叫fasttm.
 #define gfasttm(g,et,e) ((et) == NULL ? NULL : \
   ((et)->flags & (1u<<(e))) ? NULL : luaT_gettm(et, e, (g)->tmname[e]))
 

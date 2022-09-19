@@ -59,7 +59,7 @@ typedef struct LG
 {
   LX l;
   global_State g;
-} LG;
+} LG;   // 一个栈, 额外空间, 加全局状态
 
 #define fromstate(L) (cast(LX *, cast(lu_byte *, (L)) - offsetof(LX, l)))
 
@@ -82,7 +82,7 @@ static unsigned int makeseed(lua_State *L)
   addbuff(buff, p, L);              /* heap variable */
   addbuff(buff, p, &h);             /* local variable */
   addbuff(buff, p, luaO_nilobject); /* global variable */
-  addbuff(buff, p, &lua_newstate);  /* public function */
+  addbuff(buff, p, &lua_newstate);  /* public function */ //把随机的东西的地址都拷贝到buff里面.
   lua_assert(p == sizeof(buff));
   return luaS_hash(buff, p, h);
 }
@@ -100,7 +100,7 @@ void luaE_setdebt(global_State *g, l_mem debt)
   g->totalbytes = tb - debt;
   g->GCdebt = debt;
 }
-
+// ci链表拓展一个新的.放入.
 CallInfo *luaE_extendCI(lua_State *L) // CI表示callinfo
 {
   CallInfo *ci = luaM_new(L, CallInfo);
@@ -155,15 +155,15 @@ static void stack_init(lua_State *L1, lua_State *L)
   L1->stacksize = BASIC_STACK_SIZE;
   for (i = 0; i < BASIC_STACK_SIZE; i++)
     setnilvalue(L1->stack + i); /* erase new stack */
-  L1->top = L1->stack;          //栈顶指针和战地指针. 栈里面最初始的5个位置留给系统预留操作.
-  L1->stack_last = L1->stack + L1->stacksize - EXTRA_STACK;
-  /* initialize first ci */
+  L1->top = L1->stack;          //栈顶指针和结尾指针. 栈里面最初始的5个位置留给系统预留操作.栈还没开始使用,栈顶指针就是栈低指针.
+  L1->stack_last = L1->stack + L1->stacksize - EXTRA_STACK;// 所以看出来预留的结尾指针EXTRA_STACK是放最后位置的.
+  /* initialize first ci */  //都用0进行初始化,建立这次ci的设置.
   ci = &L1->base_ci;
   ci->next = ci->previous = NULL;
   ci->callstatus = 0;
   ci->func = L1->top;
   setnilvalue(L1->top++); /* 'function' entry for this 'ci' */
-  ci->top = L1->top + LUA_MINSTACK;
+  ci->top = L1->top + LUA_MINSTACK;// 先分配一个最小栈大小.
   L1->ci = ci;
 }
 
@@ -177,22 +177,22 @@ static void freestack(lua_State *L)
   luaM_freearray(L, L->stack, L->stacksize); /* free stack array */
 }
 
-/*
+/*    // 注册表的初始化.  //
 ** Create registry table and its predefined values
 */
 static void init_registry(lua_State *L, global_State *g)
 {
   TValue temp;
   /* create registry */
-  Table *registry = luaH_new(L); //创建一个字典.
-  sethvalue(L, &g->l_registry, registry);
+  Table *registry = luaH_new(L); //创建一个字典. //luaH表示lua的哈希表
+  sethvalue(L, &g->l_registry, registry); //吧字典复制给l_registry地址. seth 里面h表示哈希表.
   luaH_resize(L, registry, LUA_RIDX_LAST, 0);
-  /* registry[LUA_RIDX_MAINTHREAD] = L */
-  setthvalue(L, &temp, L); /* temp = L */
-  luaH_setint(L, registry, LUA_RIDX_MAINTHREAD, &temp);
+  /* registry[LUA_RIDX_MAINTHREAD] = L */  //下面设置2个key value到注册表里面.
+  setthvalue(L, &temp, L); /* temp = L */  //L放入temp这个Tvalue里面.
+  luaH_setint(L, registry, LUA_RIDX_MAINTHREAD, &temp);//然后tmp放注册表里面.
   /* registry[LUA_RIDX_GLOBALS] = table of globals */
   sethvalue(L, &temp, luaH_new(L)); /* temp = new table (global table) */
-  luaH_setint(L, registry, LUA_RIDX_GLOBALS, &temp);
+  luaH_setint(L, registry, LUA_RIDX_GLOBALS, &temp);//LUA_RIDX_GLOBALS 也弄成一个新的哈希表.
 }
 
 /*
@@ -251,18 +251,18 @@ static void close_state(lua_State *L)
   (*g->frealloc)(g->ud, fromstate(L), sizeof(LG), 0); /* free main block */
 }
 
-LUA_API lua_State *lua_newthread(lua_State *L)
+LUA_API lua_State *lua_newthread(lua_State *L)//还是再原始的L上生出来.
 {
   global_State *g = G(L);
   lua_State *L1;
   lua_lock(L);
-  luaC_checkGC(L);
+  luaC_checkGC(L); //首先进行垃圾回收
   /* create new thread */
-  L1 = &cast(LX *, luaM_newobject(L, LUA_TTHREAD, sizeof(LX)))->l;
+  L1 = &cast(LX *, luaM_newobject(L, LUA_TTHREAD, sizeof(LX)))->l; //开内存出一个thread,然后拿到里面的l_state
   L1->marked = luaC_white(g);
-  L1->tt = LUA_TTHREAD;
+  L1->tt = LUA_TTHREAD; //类型写为线程.
   /* link it on list 'allgc' */
-  L1->next = g->allgc;
+  L1->next = g->allgc;  //这2行就是链表的添加操作.
   g->allgc = obj2gco(L1);
   /* anchor it on L stack */
   setthvalue(L, L->top, L1);
@@ -299,11 +299,11 @@ LUA_API lua_State *lua_newstate(lua_Alloc f, void *ud)
   LG *l = cast(LG *, (*f)(ud, NULL, LUA_TTHREAD, sizeof(LG)));
   if (l == NULL)
     return NULL;
-  L = &l->l.l;
-  g = &l->g;
+  L = &l->l.l;//堆栈给L
+  g = &l->g;//,全局状态给g
   L->next = NULL;
   L->tt = LUA_TTHREAD;
-  g->currentwhite = bitmask(WHITE0BIT);
+  g->currentwhite = bitmask(WHITE0BIT);  // 黑白是gc算法用的
   L->marked = luaC_white(g);
   preinit_thread(L, g);
   g->frealloc = f;

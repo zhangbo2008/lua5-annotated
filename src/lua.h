@@ -36,8 +36,8 @@
 ** space after that to help overflow detection)
 */
 // 注册表伪索引
-// 预留 1000 用于栈溢出检测        //因为栈都是从高地址开始.所以索引都是负的.作为偏移量. 栈使用0到 -99000这么多.
-#define LUA_REGISTRYINDEX (-LUAI_MAXSTACK - 1000)
+// 预留 1000 用于栈溢出检测
+#define LUA_REGISTRYINDEX (-LUAI_MAXSTACK - 1000) //-1001000
 // 上值索引，比注册表索引更小
 #define lua_upvalueindex(i) (LUA_REGISTRYINDEX - (i))
 
@@ -81,7 +81,7 @@ typedef struct lua_State lua_State;
 /* predefined values in the registry */
 #define LUA_RIDX_MAINTHREAD 1
 #define LUA_RIDX_GLOBALS 2
-#define LUA_RIDX_LAST LUA_RIDX_GLOBALS
+#define LUA_RIDX_LAST LUA_RIDX_GLOBALS  //ridx 表示registry
 
 /* type of numbers in Lua */
 // 浮点数 double
@@ -327,7 +327,7 @@ LUA_API void(lua_setallocf)(lua_State *L, lua_Alloc f, void *ud);
 
 #define lua_tonumber(L, i) lua_tonumberx(L, (i), NULL)
 #define lua_tointeger(L, i) lua_tointegerx(L, (i), NULL)
-
+// n 表示栈顶弹出去几个.
 #define lua_pop(L, n) lua_settop(L, -(n)-1)
 
 #define lua_newtable(L) lua_createtable(L, 0, 0)
@@ -351,11 +351,11 @@ LUA_API void(lua_setallocf)(lua_State *L, lua_Alloc f, void *ud);
   ((void)lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS))
 
 #define lua_tostring(L, i) lua_tolstring(L, (i), NULL)
-
+// 这个是栈的插入炒作.因为这行调用之前都会调用push炒作.吧东西压倒栈顶.然后再调用这个insert炒作.把本职就是index之后的都向后转动一个.所以最后push的就赚到了idx的位置.
 #define lua_insert(L, idx) lua_rotate(L, (idx), 1)
-
+//remove炒作跟那个一样. 所以大于等于idx的向前转动一个单位.然后就的idx的东西就跑栈顶了.pop他即可. 最后效果就是删除了idx的内容.
 #define lua_remove(L, idx) (lua_rotate(L, (idx), -1), lua_pop(L, 1))
-
+//先把栈顶位置拷贝到idx,然后pop栈顶即可.
 #define lua_replace(L, idx) (lua_copy(L, -1, (idx)), lua_pop(L, 1))
 
 /* }============================================================== */

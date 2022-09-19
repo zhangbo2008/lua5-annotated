@@ -56,25 +56,25 @@ static l_noret lexerror (LexState *ls, const char *msg, int token);
 
 static void save (LexState *ls, int c) {
   Mbuffer *b = ls->buff;
-  if (luaZ_bufflen(b) + 1 > luaZ_sizebuffer(b)) {
+  if (luaZ_bufflen(b) + 1 > luaZ_sizebuffer(b)) {//容量慢了,就扩容.
     size_t newsize;
     if (luaZ_sizebuffer(b) >= MAX_SIZE/2)
       lexerror(ls, "lexical element too long", 0);
     newsize = luaZ_sizebuffer(b) * 2;
     luaZ_resizebuffer(ls->L, b, newsize);
   }
-  b->buffer[luaZ_bufflen(b)++] = cast(char, c);
+  b->buffer[luaZ_bufflen(b)++] = cast(char, c);// 字符串c存到最后位置.然后指针加加.
 }
 
 
 void luaX_init (lua_State *L) {
   int i;
   TString *e = luaS_newliteral(L, LUA_ENV);  /* create env name */
-  luaC_fix(L, obj2gco(e));  /* never collect this name */
-  for (i=0; i<NUM_RESERVED; i++) {
+  luaC_fix(L, obj2gco(e));  /* never collect this name */ //垃圾处理
+  for (i=0; i<NUM_RESERVED; i++) {//创建保留字.
     TString *ts = luaS_new(L, luaX_tokens[i]);
     luaC_fix(L, obj2gco(ts));  /* reserved words are never collected */
-    ts->extra = cast_byte(i+1);  /* reserved word */
+    ts->extra = cast_byte(i+1);  /* reserved word */  //所以会进入global字符串尺子总.
   }
 }
 
@@ -122,7 +122,7 @@ l_noret luaX_syntaxerror (LexState *ls, const char *msg) {
 /*
 ** creates a new string and anchors it in scanner's table so that
 ** it will not be collected until the end of the compilation
-** (by that time it should be anchored somewhere)
+** (by that time it should be anchored somewhere) //编译结束之间不会回收他.
 */
 TString *luaX_newstring (LexState *ls, const char *str, size_t l) {
   lua_State *L = ls->L;
@@ -143,10 +143,9 @@ TString *luaX_newstring (LexState *ls, const char *str, size_t l) {
   return ts;
 }
 
-
 /*
 ** increment line number and skips newline sequence (any of
-** \n, \r, \n\r, or \r\n)
+** \n, \r, \n\r, or \r\n)  //inclinenumber是 增加行号的缩写.
 */
 static void inclinenumber (LexState *ls) {
   int old = ls->current;
@@ -154,7 +153,7 @@ static void inclinenumber (LexState *ls) {
   next(ls);  /* skip '\n' or '\r' */
   if (currIsNewline(ls) && ls->current != old)
     next(ls);  /* skip '\n\r' or '\r\n' */
-  if (++ls->linenumber >= MAX_INT)
+  if (++ls->linenumber >= MAX_INT)  //加行数.
     lexerror(ls, "chunk has too many lines", 0);
 }
 
@@ -425,8 +424,9 @@ static void read_string (LexState *ls, int del, SemInfo *seminfo) {
                                    luaZ_bufflen(ls->buff) - 2);
 }
 
-
-static int llex (LexState *ls, SemInfo *seminfo) {
+//其中next函数：死循环从ZIO文件流上读取下一个字符直到完成一个Token的切割，则返回Token结果, 就是一个字符串处理函数而已,没啥技术.
+static int llex(LexState *ls, SemInfo *seminfo)
+{
   luaZ_resetbuffer(ls->buff);
   for (;;) {
     switch (ls->current) {
@@ -525,7 +525,7 @@ static int llex (LexState *ls, SemInfo *seminfo) {
           TString *ts;
           do {
             save_and_next(ls);
-          } while (lislalnum(ls->current));
+          } while (lislalnum(ls->current));//如果是数字或者字母就一直循环取.这样就得到了一个单词.
           ts = luaX_newstring(ls, luaZ_buffer(ls->buff),
                                   luaZ_bufflen(ls->buff));
           seminfo->ts = ts;
@@ -545,7 +545,6 @@ static int llex (LexState *ls, SemInfo *seminfo) {
   }
 }
 
-
 void luaX_next (LexState *ls) {
   ls->lastline = ls->linenumber;
   if (ls->lookahead.token != TK_EOS) {  /* is there a look-ahead token? */
@@ -553,7 +552,7 @@ void luaX_next (LexState *ls) {
     ls->lookahead.token = TK_EOS;  /* and discharge it */
   }
   else
-    ls->t.token = llex(ls, &ls->t.seminfo);  /* read next token */
+    ls->t.token = llex(ls, &ls->t.seminfo);  /* read next token */ //读取下一个token
 }
 
 

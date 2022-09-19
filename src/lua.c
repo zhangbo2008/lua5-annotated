@@ -227,10 +227,10 @@ static void print_version(void)
 static void createargtable(lua_State *L, char **argv, int argc, int script)
 {
   int i, narg;
-  if (script == argc)
+  if (script == argc)// script表示第一个参数索引.argc表示参数数量.如果两个相等那么说明就没有参数.
     script = 0;               /* no script name? */
   narg = argc - (script + 1); /* number of positive indices */
-  lua_createtable(L, narg, script + 1);
+  lua_createtable(L, narg, script + 1);//站上压入一个table
   for (i = 0; i < argc; i++)
   {
     lua_pushstring(L, argv[i]);
@@ -458,7 +458,7 @@ static int handle_script(lua_State *L, char **argv)
   status = luaL_loadfile(L, fname);
   if (status == LUA_OK)
   {
-    int n = pushargs(L); /* push arguments to script */
+    int n = pushargs(L); /* push arguments to script */  //n 是参数数量.
     status = docall(L, n, LUA_MULTRET);
   }
   return report(L, status);
@@ -595,7 +595,7 @@ static int pmain(lua_State *L)
     lua_pushboolean(L, 1); /* signal for libraries to ignore env. vars. */
     lua_setfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
   }
-  luaL_openlibs(L);                      /* open standard libraries */
+  luaL_openlibs(L);                      /* open standard libraries */  // 第一步加载标准库.
   createargtable(L, argv, argc, script); /* create table 'arg' */
   if (!(args & has_E))
   {                                  /* no option '-E'? */
@@ -619,18 +619,25 @@ static int pmain(lua_State *L)
     else
       dofile(L, NULL); /* executes stdin as a file */
   }
-  lua_pushboolean(L, 1); /* signal no errors */
+  lua_pushboolean(L, 1); /* signal no errors */ //通过这个地方放的返回值!!!!!!!
   return 1;
 }
-
+#include "lopcodes.h"
 int main(int argc, char **argv)
 {
 #include "lobject.h" //需要调用什么函数就在mian里面进行测试观看.
   printf("进入main函数了吗???????????\n");
-  printf("%d\n", sizeof(UTString));     // 24
-  printf("%d\n", sizeof(L_Umaxalign));  // 8
-  printf("%d\n", sizeof(TString));      // 24
-  printf("%d\n", sizeof(GCObject));     // 24
+  printf("%d\n", sizeof(UTString));    // 24
+  printf("%d\n", sizeof(L_Umaxalign)); // 8
+  printf("%d\n", sizeof(TString));     // 24
+  printf("%d\n", sizeof(GCObject));    // 24
+  printf("%d\n", LUA_REGISTRYINDEX);   //   -1001000
+  printf("%d\n", lua_upvalueindex(1));    //   -1001000
+  printf("%d\n", CHAR_BIT);            //   -1001000
+  printf("%d\n", MASK1(3,4));            //  112
+  printf("%d\n", MASK1(6,0));            //  112
+  printf("%s\n", "end");            //   -1001000
+
   // printf("%d", sizeof(UTString.dummy));
 
   int status, result;
@@ -639,11 +646,11 @@ int main(int argc, char **argv)
   {
     l_message(argv[0], "cannot create state: not enough memory");
     return EXIT_FAILURE;
-  }
-  lua_pushcfunction(L, &pmain);   /* to call 'pmain' in protected mode */
+  }//lua里面调用函数都是先压入函数指针,然后压入变量.再调用pcall函数来启动压入的函数!!!!!!!!!!!!!!!!!!!!!!!!!!!!!这是很重要的方式.
+  lua_pushcfunction(L, &pmain);   /* to call 'pmain' in protected mode */ //调用pmain函数,就把他先压入栈.压入一个c函数,调用的是c闭包函数.
   lua_pushinteger(L, argc);       /* 1st argument */
-  lua_pushlightuserdata(L, argv); /* 2nd argument */
-  status = lua_pcall(L, 2, 1, 0); /* do the call */
+  lua_pushlightuserdata(L, argv); /* 2nd argument */ // lightuserdata就是指针的意思,表示放入一个指针型数据.
+  status = lua_pcall(L, 2, 1, 0); /* do the call */   // 2表示2个入参, 1表示一个出参 //调用pmain函数. //就是上2行的1st,2nd argument所以这里面要2表示2个入参.
   result = lua_toboolean(L, -1);  /* get result */
   report(L, status);
   lua_close(L);

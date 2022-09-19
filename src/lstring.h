@@ -22,7 +22,7 @@
 
 /*
 ** test whether a string is a reserved word
-*/
+*/  //为什么看extra是否大于0就行?????????原因是global_state里面存了这些关键字.如果s在这些关键字里面存着,会在字符串创建的时候extra里面写入global_state里面对应位置的哈希值.所以他是大于0的. kan llex.c:70即可. 创建时候extra写入了. 会进入global 池子中.
 #define isreserved(s) ((s)->tt == LUA_TSHRSTR && (s)->extra > 0)
 
 /*

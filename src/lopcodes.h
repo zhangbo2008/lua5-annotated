@@ -11,8 +11,8 @@
 
 
 /*===========================================================================
-  We assume that instructions are unsigned numbers.
-  All instructions have an opcode in the first 6 bits.
+  We assume that instructions are unsigned numbers.  // 指令 是一个无符号32位整数.
+  All instructions have an opcode in the first 6 bits.  所以是 6+8+9+9=32
   Instructions can have the following fields:
 	'A' : 8 bits
 	'B' : 9 bits
@@ -68,21 +68,20 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 //---------------------------------------------------------------------
 // 对应起始位
 //---------------------------------------------------------------------
-#define POS_OP		0
-#define POS_A		(POS_OP + SIZE_OP)
-#define POS_C		(POS_A + SIZE_A)
-#define POS_B		(POS_C + SIZE_C)
-#define POS_Bx		POS_C
-#define POS_Ax		POS_A
-
+#define POS_OP 0 // SIZE_OP =6
+#define POS_A (POS_OP + SIZE_OP) // POS_A=6
+#define POS_C (POS_A + SIZE_A)   // POS_C=14
+#define POS_B (POS_C + SIZE_C)   // POS_B=23
+#define POS_Bx POS_C             // POS_Bx=14
+#define POS_Ax POS_A             // POS_Ax=6   对应的图看 https://initphp.blog.csdn.net/article/details/105247775 即可.
 
 /*
 ** limits for opcode arguments.
 ** we use (signed) int to manipulate most arguments,
-** so they must fit in LUAI_BITSINT-1 bits (-1 for sign)
+** so they must fit in LUAI_BITSINT-1 bits (-1 for sign) 我们用带符号整数来表示参数.
 */
 #if SIZE_Bx < LUAI_BITSINT-1
-#define MAXARG_Bx        ((1<<SIZE_Bx)-1)
+#define MAXARG_Bx        ((1<<SIZE_Bx)-1) //因为带符号所以最大值是再-1
 #define MAXARG_sBx        (MAXARG_Bx>>1)         /* 'sBx' is signed */
 #else
 #define MAXARG_Bx        MAX_INT
@@ -100,7 +99,12 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 #define MAXARG_B        ((1<<SIZE_B)-1)
 #define MAXARG_C        ((1<<SIZE_C)-1)
 
+// ((~(        a       <<(n)))<<(p))
 
+// a= (~     (Instruction)      0) 
+// a=11111111111111111111111
+//   a       <<(n))=11111111000000000000  n个0
+// ((~(        a       <<(n)))<<(p))=00000111111110000000结尾p个0,前面32-n个0
 /* creates a mask with 'n' 1 bits at position 'p' */
 #define MASK1(n,p)	((~((~(Instruction)0)<<(n)))<<(p))
 
@@ -113,13 +117,13 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 
 //=====================================================================
 // 一些操作宏函数
-//=====================================================================
+//=====================================================================  MASK1(SIZE_OP,0) = 00000000111111
 
-#define GET_OPCODE(i)	(cast(OpCode, ((i)>>POS_OP) & MASK1(SIZE_OP,0)))
+#define GET_OPCODE(i)	(cast(OpCode, ((i)>>POS_OP) & MASK1(SIZE_OP,0))) //也就是取出最后六位.也就是optcode.
 #define SET_OPCODE(i,o)	((i) = (((i)&MASK0(SIZE_OP,POS_OP)) | \
-		((cast(Instruction, o)<<POS_OP)&MASK1(SIZE_OP,POS_OP))))
+		((cast(Instruction, o)<<POS_OP)&MASK1(SIZE_OP,POS_OP))))  //把o的操作码放i上.
 
-#define getarg(i,pos,size)	(cast(int, ((i)>>pos) & MASK1(size,0)))
+#define getarg(i,pos,size)	(cast(int, ((i)>>pos) & MASK1(size,0)))  //获取pos位开始size大小的部分的数值.
 #define setarg(i,v,pos,size)	((i) = (((i)&MASK0(size,pos)) | \
                 ((cast(Instruction, v)<<pos)&MASK1(size,pos))))
 
@@ -145,7 +149,7 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 #define CREATE_ABC(o,a,b,c)	((cast(Instruction, o)<<POS_OP) \
 			| (cast(Instruction, a)<<POS_A) \
 			| (cast(Instruction, b)<<POS_B) \
-			| (cast(Instruction, c)<<POS_C))
+			| (cast(Instruction, c)<<POS_C))  //这个宏把 o操作符, a,b,c寄存器值. 分别输入进来,然后返回返回指令code是一个32位整数.叫指令.叫操作指令.
 
 #define CREATE_ABx(o,a,bc)	((cast(Instruction, o)<<POS_OP) \
 			| (cast(Instruction, a)<<POS_A) \
@@ -159,10 +163,10 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 ** Macros to operate RK indices
 */
 
-/* this bit 1 means constant (0 means register) */
+
 #define BITRK		(1 << (SIZE_B - 1))
 
-/* test whether value is a constant */
+/* test whether value is a constant */  /* this bit 1 means constant (0 means register) */
 #define ISK(x)		((x) & BITRK)
 
 /* gets the index of the constant */
@@ -182,10 +186,10 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 #define NO_REG		MAXARG_A
 
 
-/*
+/*指令炒作的说明.
 ** R(x) - register
-** Kst(x) - constant (in constant table)
-** RK(x) == if ISK(x) then Kst(INDEXK(x)) else R(x)
+** Kst(x) - constant (in constant table)   kst表示const的意思.
+** RK(x) == if ISK(x) then Kst(INDEXK(x)) else R(x)    Rk表示可以是寄存器也可以是常数  ISK 表示is constant 是一个常数. 这行意思是如果是常数那么RK表示的是索引.否则就是寄存器.
 */
 
 
@@ -205,11 +209,11 @@ OP_MOVE,/*	A B	R(A) := R(B)					*/
 OP_LOADK,/*	A Bx	R(A) := Kst(Bx)					*/
 OP_LOADKX,/*	A 	R(A) := Kst(extra arg)				*/
 OP_LOADBOOL,/*	A B C	R(A) := (Bool)B; if (C) pc++			*/
-OP_LOADNIL,/*	A B	R(A), R(A+1), ..., R(A+B) := nil		*/
-OP_GETUPVAL,/*	A B	R(A) := UpValue[B]				*/
+OP_LOADNIL,/*	A B	R(A), R(A+1), ..., R(A+B) := nil		*/ //从A到A+B全赋值为nil
+OP_GETUPVAL,/*	A B	R(A) := UpValue[B]				*/  // 把B这个upvalue放到a里面 ,b来提供索引
 
-OP_GETTABUP,/*	A B C	R(A) := UpValue[B][RK(C)]			*/
-OP_GETTABLE,/*	A B C	R(A) := R(B)[RK(C)]				*/
+OP_GETTABUP,/*	A B C	R(A) := UpValue[B][RK(C)]			*/  //upvalue表中索引b,取出来一个字典,然后C作为key来得到value. 
+OP_GETTABLE,/*	A B C	R(A) := R(B)[RK(C)]				*/   // 参考lua设计与实现.pdf 里面48页.的讲解. 以Rk(C)为索引 R(B)为数据表.取出来的数据geiR(A)
 
 OP_SETTABUP,/*	A B C	UpValue[A][RK(B)] := RK(C)			*/
 OP_SETUPVAL,/*	A B	UpValue[B] := R(A)				*/
@@ -243,11 +247,11 @@ OP_EQ,/*	A B C	if ((RK(B) == RK(C)) ~= A) then pc++		*/
 OP_LT,/*	A B C	if ((RK(B) <  RK(C)) ~= A) then pc++		*/
 OP_LE,/*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
 
-OP_TEST,/*	A C	if not (R(A) <=> C) then pc++			*/
-OP_TESTSET,/*	A B C	if (R(B) <=> C) then R(A) := R(B) else pc++	*/
+OP_TEST,/*	A C	if not (R(A) <=> C) then pc++			*/  //如果ra不等于C,那么pc指针加加.也就是跳过吓一跳指令.  <=>是不等号!
+OP_TESTSET,/*	A B C	if (R(B) <=> C) then R(A) := R(B) else pc++	*/ //如果rb和c不相同那么进行rb=ra 否则pc加加.
 
-OP_CALL,/*	A B C	R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1)) */
-OP_TAILCALL,/*	A B C	return R(A)(R(A+1), ... ,R(A+B-1))		*/
+OP_CALL,/*	A B C	R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1)) */   // 第一个情况当B不是0的时候 表示函数为ra, 参数为r(a+1),....r(a+b-1).一共b个参数.然后返回值有c-1个.  第二个情况b=0时候. 参数从a+1到栈顶.
+OP_TAILCALL,/*	A B C	return R(A)(R(A+1), ... ,R(A+B-1))		*///尾调用.表示函数调用然后返回这些值的操作. B-1个参数.
 OP_RETURN,/*	A B	return R(A), ... ,R(A+B-2)	(see note)	*/
 
 OP_FORLOOP,/*	A sBx	R(A)+=R(A+2);

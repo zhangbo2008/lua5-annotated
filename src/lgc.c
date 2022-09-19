@@ -190,7 +190,7 @@ void luaC_upvalbarrier_ (lua_State *L, UpVal *uv) {
     markobject(g, o);
 }
 
-
+//修改o为不回收的.
 void luaC_fix (lua_State *L, GCObject *o) {
   global_State *g = G(L);
   lua_assert(g->allgc == o);  /* object must be 1st in 'allgc' list! */

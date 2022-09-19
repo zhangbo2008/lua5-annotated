@@ -28,7 +28,7 @@ typedef enum {
   VNIL,  /* constant nil */
   VTRUE,  /* constant true */
   VFALSE,  /* constant false */
-  VK,  /* constant in 'k'; info = index of constant in 'k' */
+  VK,  /* constant in 'k'; info = index of constant in 'k' */ //字符型的const, info里面存的是他的索引.
   VKFLT,  /* floating constant; nval = numerical float value */
   VKINT,  /* integer constant; nval = numerical integer value */
   VNONRELOC,  /* expression has its value in a fixed register;
@@ -38,7 +38,7 @@ typedef enum {
   VINDEXED,  /* indexed variable;
                 ind.vt = whether 't' is register or upvalue;
                 ind.t = table register or upvalue;
-                ind.idx = key's R/K index */
+                ind.idx = key's R/K index */ //已经计算完索引的变量.
   VJMP,  /* expression is a test/comparison;
             info = pc of corresponding jump instruction */
   VRELOCABLE,  /* expression can put result in any register;
@@ -52,7 +52,7 @@ typedef enum {
 #define vkisinreg(k)	((k) == VNONRELOC || (k) == VLOCAL)
 
 typedef struct expdesc {
-  expkind k;
+  expkind k; //类别.
   union {
     lua_Integer ival;    /* for VKINT */
     lua_Number nval;  /* for VKFLT */
@@ -61,8 +61,8 @@ typedef struct expdesc {
       short idx;  /* index (R/K) */
       lu_byte t;  /* table (register or upvalue) */
       lu_byte vt;  /* whether 't' is register (VLOCAL) or upvalue (VUPVAL) */
-    } ind;
-  } u;
+    } ind;   //ind : inner discription 内在结构.的意思.
+  } u;   //用来保存他里面的值. 所以用一个union. 保存int float  ind用来保存变量.
   int t;  /* patch list of 'exit when true' */
   int f;  /* patch list of 'exit when false' */
 } expdesc;

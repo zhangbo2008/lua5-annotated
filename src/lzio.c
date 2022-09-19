@@ -19,22 +19,22 @@
 #include "lstate.h"
 #include "lzio.h"
 
-
+// z进行填充,然后返回第一个字符.
 int luaZ_fill (ZIO *z) {
   size_t size;
   lua_State *L = z->L;
   const char *buff;
   lua_unlock(L);
-  buff = z->reader(L, z->data, &size);
+  buff = z->reader(L, z->data, &size); //文件读取，返回size 大小 getF方法, 函数返回一个char *
   lua_lock(L);
   if (buff == NULL || size == 0)
     return EOZ;
-  z->n = size - 1;  /* discount char being returned */
+  z->n = size - 1;  /* discount char being returned */   //因为我们上面调用reader方法就是读取一个字符. 所以还需要读的字符-1.
   z->p = buff;
-  return cast_uchar(*(z->p++));
+  return cast_uchar(*(z->p++));  //我理解是当你调用这个函数时候return一个字符串了.然后z存储的指针就移动一个.因为你返回一个字符了.debug过了, 是这样的.
 }
 
-
+// 对zio进行初始哈
 void luaZ_init (lua_State *L, ZIO *z, lua_Reader reader, void *data) {
   z->L = L;
   z->reader = reader;

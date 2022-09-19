@@ -10,7 +10,7 @@
 #include "lprefix.h"
 
 
-/*
+/* aka 又名
 ** Implementation of tables (aka arrays, objects, or hash tables).
 ** Tables keep its elements in two parts: an array part and a hash part.
 ** Non-negative integer keys are all candidates to be kept in the array
@@ -39,11 +39,12 @@
 #include "lvm.h"
 
 
-/*
+/*ffffffffffffffff
 ** Maximum size of array part (MAXASIZE) is 2^MAXABITS. MAXABITS is
 ** the largest integer such that MAXASIZE fits in an unsigned int.
-*/
-#define MAXABITS	cast_int(sizeof(int) * CHAR_BIT - 1)
+*/                //CHAR_BIT 表示char里面有多少个bit  //d/fasdfs
+
+#define MAXABITS	cast_int(sizeof(int) * CHAR_BIT - 1)  //最大整数是多少bit
 #define MAXASIZE	(1u << MAXABITS)
 
 /*
@@ -55,7 +56,7 @@
 #define MAXHBITS	(MAXABITS - 1)
 
 
-#define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))
+#define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))  //哈希pow2算法. mode一个2的次幂而已.
 
 #define hashstr(t,str)		hashpow2(t, (str)->hash)
 #define hashboolean(t,p)	hashpow2(t, p)
@@ -64,7 +65,7 @@
 
 /*
 ** for some types, it is better to avoid modulus by power of 2, as
-** they tend to have many 2 factors.
+** they tend to have many 2 factors.  //有时候一些类型要避免mod 2的次幂.因为这些类型已经是2的次幂了.mod效果不好.
 */
 #define hashmod(t,n)	(gnode(t, ((n) % ((sizenode(t)-1)|1))))
 
@@ -72,11 +73,11 @@
 #define hashpointer(t,p)	hashmod(t, point2uint(p))
 
 
-#define dummynode		(&dummynode_)
+#define dummynode		(&dummynode_)  //哑node作为边界符.
 
 static const Node dummynode_ = {
   {NILCONSTANT},  /* value */
-  {{NILCONSTANT, 0}}  /* key */
+  {{NILCONSTANT, 0}}  /* key */  
 };
 
 
@@ -94,17 +95,17 @@ static const Node dummynode_ = {
 ** INT_MIN.
 */
 #if !defined(l_hashfloat)
-static int l_hashfloat (lua_Number n) {
+static int l_hashfloat (lua_Number n) {//定义哈希float算法.
   int i;
-  lua_Integer ni;
-  n = l_mathop(frexp)(n, &i) * -cast_num(INT_MIN);
-  if (!lua_numbertointeger(n, &ni)) {  /* is 'n' inf/-inf/NaN? */
+  lua_Integer ni; // frexp功能： 把一个浮点数分解为尾数和指数,返回尾数. i存指数.
+  n = l_mathop(frexp)(n, &i) * -cast_num(INT_MIN);//剪去最小整数,n变成正数.
+  if (!lua_numbertointeger(n, &ni)) {  /* is 'n' inf/-inf/NaN? */ //如果float转换不了整数那么就返回0
     lua_assert(luai_numisnan(n) || l_mathop(fabs)(n) == cast_num(HUGE_VAL));
     return 0;
   }
-  else {  /* normal case */
-    unsigned int u = cast(unsigned int, i) + cast(unsigned int, ni);
-    return cast_int(u <= cast(unsigned int, INT_MAX) ? u : ~u);
+  else {  /* normal case */ //如果可以转化. 那么n转化的结果会到ni里面.
+    unsigned int u = cast(unsigned int, i) + cast(unsigned int, ni);//指数跟尾数相加.
+    return cast_int(u <= cast(unsigned int, INT_MAX) ? u : ~u); //如果u符合就返回u否则取反.如果u是int_min那么就取反.
   }
 }
 #endif
@@ -112,7 +113,7 @@ static int l_hashfloat (lua_Number n) {
 
 /*
 ** returns the 'main' position of an element in a table (that is, the index
-** of its hash value)
+** of its hash value) //计算一个东西他在表中的索引位置. 就是哈希值.
 */
 static Node *mainposition (const Table *t, const TValue *key) {
   switch (ttype(key)) {
@@ -164,7 +165,7 @@ static unsigned int findindex (lua_State *L, Table *t, StkId key) {
     return i;  /* yes; that's the index */
   else {
     int nx;
-    Node *n = mainposition(t, key);
+    Node *n = mainposition(t, key);//得到对应位置的node
     for (;;) {  /* check whether 'key' is somewhere in the chain */
       /* key may be dead already, but it is ok to use it in 'next' */
       if (luaV_rawequalobj(gkey(n), key) ||
@@ -172,30 +173,30 @@ static unsigned int findindex (lua_State *L, Table *t, StkId key) {
              deadvalue(gkey(n)) == gcvalue(key))) {
         i = cast_int(n - gnode(t, 0));  /* key index in hash table */
         /* hash elements are numbered after array ones */
-        return (i + 1) + t->sizearray;
+        return (i + 1) + t->sizearray;//匹配到了就 返回加一再加上数组长度.
       }
-      nx = gnext(n);
+      nx = gnext(n);//不匹配就一直next指针走起来.
       if (nx == 0)
         luaG_runerror(L, "invalid key to 'next'");  /* key not found */
-      else n += nx;
+      else n += nx;//用的是偏移量来存的.
     }
   }
 }
 
-
+//是否存在下一个元素. 包括当前这个key. 如果当前key存了内容就返回这个key, 否则找到比这个key大的最小有内容索引.找到返回1, 找不到返回0.
 int luaH_next (lua_State *L, Table *t, StkId key) {
   unsigned int i = findindex(L, t, key);  /* find original element */
   for (; i < t->sizearray; i++) {  /* try first array part */
     if (!ttisnil(&t->array[i])) {  /* a non-nil value? */
-      setivalue(key, i + 1);
+      setivalue(key, i + 1);       //懂了. https://www.pudn.com/news/628f8315bf399b7f351e6922.html 原来是这个图啊. 虽然图没看特别懂,但是道理基本是这个. luaH_next 调用之前 栈里面压入 key, 调用后, 拿到key值.查询. 找到后. 先压入下一个索引到key位置. 下一个查询位置是i+1, 然后再压入函数返回值到栈下一个位置key+1. 返回值是 &t->array[i] . 也就是数组第i个位置.!!!!!!!!!!!!!! 链接上面说了lua里面函数大概调用方式都是这样. 利用栈来做各个函数之间的数据交互.
       setobj2s(L, key+1, &t->array[i]);
       return 1;
     }
   }
   for (i -= t->sizearray; cast_int(i) < sizenode(t); i++) {  /* hash part */
     if (!ttisnil(gval(gnode(t, i)))) {  /* a non-nil value? */
-      setobj2s(L, key, gkey(gnode(t, i)));
-      setobj2s(L, key+1, gval(gnode(t, i)));
+      setobj2s(L, key, gkey(gnode(t, i))); //怎么不加一了????????
+      setobj2s(L, key+1, gval(gnode(t, i)));//设置返回值. 懂了. 原来字典的next迭代不一样. 是不需要压入下一个下标的. 他只需要设置返回值. 这次需要设置2个返回值,一个key 一个value. 不需要压入下一个key的!!!!!!!!!!!!目前先这样理解.debug看看代码里面有没有解释.
       return 1;
     }
   }
@@ -312,16 +313,16 @@ static void setnodevector (lua_State *L, Table *t, unsigned int size) {
     t->node = cast(Node *, dummynode);  /* use common 'dummynode' */
     t->lsizenode = 0;
     t->lastfree = NULL;  /* signal that it is using dummy node */
-  }
+  }//不需要元素的哈希表,那么就里面放dummynode即可.
   else {
     int i;
     int lsize = luaO_ceillog2(size);
     if (lsize > MAXHBITS)
       luaG_runerror(L, "table overflow");
-    size = twoto(lsize);
-    t->node = luaM_newvector(L, size, Node);
+    size = twoto(lsize);  //计算log2然后得到比size大一点的2的次幂作为size
+    t->node = luaM_newvector(L, size, Node); //创建数组.
     for (i = 0; i < (int)size; i++) {
-      Node *n = gnode(t, i);
+      Node *n = gnode(t, i); // gnode:get node的意思.
       gnext(n) = 0;
       setnilvalue(wgkey(n));
       setnilvalue(gval(n));
@@ -346,7 +347,7 @@ static void auxsetnode (lua_State *L, void *ud) {
 
 void luaH_resize (lua_State *L, Table *t, unsigned int nasize,
                                           unsigned int nhsize) {
-  unsigned int i;
+  unsigned int i; /// nasize 设置array大小 nhsize 设置哈希表大小.
   int j;
   AuxsetnodeT asn;
   unsigned int oldasize = t->sizearray;
@@ -457,7 +458,7 @@ static Node *getfreepos (Table *t) {
 ** position or not: if it is not, move colliding node to an empty place and
 ** put new key in its main position; otherwise (colliding node is in its main
 ** position), new key goes to an empty position.
-*/
+*/ //确实很复杂!!!!!!!!!!!!!!!!!!!!很有意思. //添加一个新key然后返回他的value.  value里面的值跟key一样.
 TValue *luaH_newkey (lua_State *L, Table *t, const TValue *key) {
   Node *mp;
   TValue aux;
@@ -482,28 +483,28 @@ TValue *luaH_newkey (lua_State *L, Table *t, const TValue *key) {
     }
     lua_assert(!isdummy(t));
     othern = mainposition(t, gkey(mp));
-    if (othern != mp) {  /* is colliding node out of its main position? */
+    if (othern != mp) {  /* is colliding node out of its main position? */ 
       /* yes; move colliding node into free position */
       while (othern + gnext(othern) != mp)  /* find previous */
-        othern += gnext(othern);
-      gnext(othern) = cast_int(f - othern);  /* rechain to point to 'f' */
-      *f = *mp;  /* copy colliding node into free pos. (mp->next also goes) */
-      if (gnext(mp) != 0) {
+        othern += gnext(othern);// mp位置现在放入的数据,其实是其他地方算完哈希值,然后没有位置放了,就找一个free点放入.恰好就是mp位置.所以other一定可以通过偏移量走一些次之后到达mp.
+      gnext(othern) = cast_int(f - othern);  /* rechain to point to 'f' */  //让other下一次走到free节点.
+      *f = *mp;  /* copy colliding node into free pos. (mp->next also goes) */ //把mp位置腾出来. 把原始mp扔到f位置.
+      if (gnext(mp) != 0) { //如果这个节点后续还有.那么f链接到这个mp.然后我们在mp中村位置即可.
         gnext(f) += cast_int(mp - f);  /* correct 'next' */
-        gnext(mp) = 0;  /* now 'mp' is free */
+        gnext(mp) = 0;  /* now 'mp' is free */  
       }
       setnilvalue(gval(mp));
     }
-    else {  /* colliding node is in its own main position */
+    else {  /* colliding node is in its own main position */ // 先看这个. 如果之前节点已经占用这个位置了.那么我们就把自由节点用上.然后之前的链接到这个自由节点即可.
       /* new node will go into free position */
       if (gnext(mp) != 0)
         gnext(f) = cast_int((mp + gnext(mp)) - f);  /* chain new position */
       else lua_assert(gnext(f) == 0);
       gnext(mp) = cast_int(f - mp);
-      mp = f;
+      mp = f;//这是mp表示我们新插入的位置node.
     }
   }
-  setnodekey(L, &mp->i_key, key);
+  setnodekey(L, &mp->i_key, key); //value也设置为key
   luaC_barrierback(L, t, key);
   lua_assert(ttisnil(gval(mp)));
   return gval(mp);
@@ -588,7 +589,7 @@ const TValue *luaH_getstr (Table *t, TString *key) {
 */
 const TValue *luaH_get (Table *t, const TValue *key) {
   switch (ttype(key)) {
-    case LUA_TSHRSTR: return luaH_getshortstr(t, tsvalue(key));
+    case LUA_TSHRSTR: return luaH_getshortstr(t, tsvalue(key));//short str
     case LUA_TNUMINT: return luaH_getint(t, ivalue(key));
     case LUA_TNIL: return luaO_nilobject;
     case LUA_TNUMFLT: {
@@ -614,7 +615,7 @@ TValue *luaH_set (lua_State *L, Table *t, const TValue *key) {
   else return luaH_newkey(L, t, key);
 }
 
-
+// value放入t[key]里面.
 void luaH_setint (lua_State *L, Table *t, lua_Integer key, TValue *value) {
   const TValue *p = luaH_getint(t, key);
   TValue *cell;
@@ -653,7 +654,7 @@ static lua_Unsigned unbound_search (Table *t, lua_Unsigned j) {
 }
 
 
-/*
+/* 获得哈希表的大小.
 ** Try to find a boundary in table 't'. A 'boundary' is an integer index
 ** such that t[i] is non-nil and t[i+1] is nil (and 0 if t[1] is nil).
 */

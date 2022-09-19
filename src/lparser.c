@@ -135,8 +135,8 @@ static void check_match (LexState *ls, int what, int who, int where) {
 static TString *str_checkname (LexState *ls) {
   TString *ts;
   check(ls, TK_NAME);
-  ts = ls->t.seminfo.ts;
-  luaX_next(ls);
+  ts = ls->t.seminfo.ts;//抽取具体的字符串值.
+  luaX_next(ls);//读取下一个到ls->t
   return ts;
 }
 
@@ -147,7 +147,7 @@ static void init_exp (expdesc *e, expkind k, int i) {
   e->u.info = i;
 }
 
-
+//string编码后,把编码之后的索引放入expdesc里面. 就是e变量里面.
 static void codestring (LexState *ls, expdesc *e, TString *s) {
   init_exp(e, VK, luaK_stringK(ls->fs, s));
 }
@@ -161,26 +161,26 @@ static void checkname (LexState *ls, expdesc *e) {
 static int registerlocalvar (LexState *ls, TString *varname) {
   FuncState *fs = ls->fs;
   Proto *f = fs->f;
-  int oldsize = f->sizelocvars;
+  int oldsize = f->sizelocvars;// 跟之前的一样. nlocvars 表示当前有多少个变量, sizelocvars 表示 局部变量数量的最大的容量.
   luaM_growvector(ls->L, f->locvars, fs->nlocvars, f->sizelocvars,
                   LocVar, SHRT_MAX, "local variables");
   while (oldsize < f->sizelocvars)
     f->locvars[oldsize++].varname = NULL;
   f->locvars[fs->nlocvars].varname = varname;
-  luaC_objbarrier(ls->L, f, varname);
-  return fs->nlocvars++;
+  luaC_objbarrier(ls->L, f, varname);   //gc相关的算法,现在先跳过.
+  return fs->nlocvars++;//指针加加
 }
 
 
 static void new_localvar (LexState *ls, TString *name) {
   FuncState *fs = ls->fs;
   Dyndata *dyd = ls->dyd;
-  int reg = registerlocalvar(ls, name);
+  int reg = registerlocalvar(ls, name);// 局部变量的名字 注册到local_vars里面. 返回新加入变量在注册数组local_vars里面的索引.
   checklimit(fs, dyd->actvar.n + 1 - fs->firstlocal,
                   MAXVARS, "local variables");
   luaM_growvector(ls->L, dyd->actvar.arr, dyd->actvar.n + 1,
-                  dyd->actvar.size, Vardesc, MAX_INT, "local variables");
-  dyd->actvar.arr[dyd->actvar.n++].idx = cast(short, reg);
+                  dyd->actvar.size, Vardesc, MAX_INT, "local variables");    /// dyd.actvar.n 表示现在有多少个局部变量.  actar.arr 局部变量的地址位置    acatar.size 局部变量数量的最大容量.  Vardesc var_description局部变量的结构体.   "local variables"是出错打印信息而已.没啥用.
+  dyd->actvar.arr[dyd->actvar.n++].idx = cast(short, reg);// 变量的索引写入idx这个属性里面.
 }
 
 
@@ -224,20 +224,20 @@ static int searchupvalue (FuncState *fs, TString *name) {
   return -1;  /* not found */
 }
 
-
+//新增加一个upvalue
 static int newupvalue (FuncState *fs, TString *name, expdesc *v) {
   Proto *f = fs->f;
   int oldsize = f->sizeupvalues;
   checklimit(fs, fs->nups + 1, MAXUPVAL, "upvalues");
   luaM_growvector(fs->ls->L, f->upvalues, fs->nups, f->sizeupvalues,
-                  Upvaldesc, MAXUPVAL, "upvalues");
-  while (oldsize < f->sizeupvalues)
-    f->upvalues[oldsize++].name = NULL;
+                  Upvaldesc, MAXUPVAL, "upvalues");  //  nups表示当前有多少个, 然后这个函数把nump的存储空间拓展一个.  其他参数f->upvalues 表示存储upvalues的指针  ,sizeupvalues表示容量多大. Upvaldesc是upvalue_description表示一个upvalue的结构体. 拓展之后 f->sizeupvalues就表示新的数值了.
+  while (oldsize < f->sizeupvalues) //如果进行了拓展那么这个地方会生效.进入循环体内部.
+    f->upvalues[oldsize++].name = NULL;//那么拓展之后的名字都设置为null
   f->upvalues[fs->nups].instack = (v->k == VLOCAL);
   f->upvalues[fs->nups].idx = cast_byte(v->u.info);
   f->upvalues[fs->nups].name = name;
   luaC_objbarrier(fs->ls->L, f, name);
-  return fs->nups++;
+  return fs->nups++;//加完之后数值返回去即可.
 }
 
 
@@ -291,7 +291,7 @@ static void singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
   }
 }
 
-
+//var里面信息进行编码.写入var里面.做好了opt编码.
 static void singlevar (LexState *ls, expdesc *var) {
   TString *varname = str_checkname(ls);
   FuncState *fs = ls->fs;
@@ -300,12 +300,12 @@ static void singlevar (LexState *ls, expdesc *var) {
     expdesc key;
     singlevaraux(fs, ls->envn, var, 1);  /* get environment variable */
     lua_assert(var->k != VVOID);  /* this one must exist */
-    codestring(ls, &key, varname);  /* key is variable name */
+    codestring(ls, &key, varname);  /* key is variable name */ //string进行编码,编码之后的结果放到key里面.
     luaK_indexed(fs, var, &key);  /* env[varname] */
   }
 }
 
-
+//把表达式跟变量名绑定上.
 static void adjust_assign (LexState *ls, int nvars, int nexps, expdesc *e) {
   FuncState *fs = ls->fs;
   int extra = nvars - nexps;
@@ -330,7 +330,7 @@ static void adjust_assign (LexState *ls, int nvars, int nexps, expdesc *e) {
 
 static void enterlevel (LexState *ls) {
   lua_State *L = ls->L;
-  ++L->nCcalls;
+  ++L->nCcalls;//用这个变量开控制.所以这个变量加减就能表示层级.
   checklimit(ls->fs, L->nCcalls, LUAI_MAXCCALLS, "C levels");
 }
 
@@ -582,13 +582,13 @@ static void close_func (LexState *ls) {
 /*
 ** check whether current token is in the follow set of a block.
 ** 'until' closes syntactical blocks, but do not close scope,
-** so it is handled in separate.
+** so it is handled in separate. 判断这个token是不是一个语法块的结束符
 */
 static int block_follow (LexState *ls, int withuntil) {
   switch (ls->t.token) {
     case TK_ELSE: case TK_ELSEIF:
-    case TK_END: case TK_EOS:
-      return 1;
+    case TK_END: case TK_EOS:  //TK_EOS表示文件结束符.到达文件的结尾会有这个符号.
+      return 1;  //遇到这4个返回1表示到达一个语法快的结尾.
     case TK_UNTIL: return withuntil;
     default: return 0;
   }
@@ -602,7 +602,7 @@ static void statlist (LexState *ls) {
       statement(ls);
       return;  /* 'return' must be last statement */
     }
-    statement(ls);
+    statement(ls);//
   }
 }
 
@@ -702,7 +702,7 @@ static void listfield (LexState *ls, struct ConsControl *cc) {
 static void field (LexState *ls, struct ConsControl *cc) {
   /* field -> listfield | recfield */
   switch(ls->t.token) {
-    case TK_NAME: {  /* may be 'listfield' or 'recfield' */
+    case TK_NAME: {  /* may be 'listfield' or 'recfield' */  //如果遇到一个name,也就是程序员自己写的变量名.就向前看一个.
       if (luaX_lookahead(ls) != '=')  /* expression? */
         listfield(ls, cc);
       else
@@ -800,12 +800,12 @@ static void body (LexState *ls, expdesc *e, int ismethod, int line) {
   close_func(ls);
 }
 
-
+//解析一个列表带,的或者不带的.//返回值是处理了多少个表达式.
 static int explist (LexState *ls, expdesc *v) {
   /* explist -> expr { ',' expr } */
   int n = 1;  /* at least one expression */
-  expr(ls, v);
-  while (testnext(ls, ',')) {
+  expr(ls, v);//解析当前token到v里面. 解析一个不带逗号的.
+  while (testnext(ls, ',')) {//如果有逗号就迭代即可.
     luaK_exp2nextreg(ls->fs, v);
     expr(ls, v);
     n++;
@@ -867,7 +867,7 @@ static void funcargs (LexState *ls, expdesc *f, int line) {
 ** =======================================================================
 */
 
-
+//exp解析主题部分.
 static void primaryexp (LexState *ls, expdesc *v) {
   /* primaryexp -> NAME | '(' expr ')' */
   switch (ls->t.token) {
@@ -927,7 +927,7 @@ static void suffixedexp (LexState *ls, expdesc *v) {
   }
 }
 
-
+//处理简化之后的exp表达式,返回他的opt码
 static void simpleexp (LexState *ls, expdesc *v) {
   /* simpleexp -> FLT | INT | STRING | NIL | TRUE | FALSE | ... |
                   constructor | FUNCTION body | suffixedexp */
@@ -938,8 +938,8 @@ static void simpleexp (LexState *ls, expdesc *v) {
       break;
     }
     case TK_INT: {
-      init_exp(v, VKINT, 0);
-      v->u.ival = ls->t.seminfo.i;
+      init_exp(v, VKINT, 0);//初始化v变量.社会v的类别.
+      v->u.ival = ls->t.seminfo.i;//填入ivalue
       break;
     }
     case TK_STRING: {
@@ -975,21 +975,21 @@ static void simpleexp (LexState *ls, expdesc *v) {
       return;
     }
     default: {
-      suffixedexp(ls, v);
+      suffixedexp(ls, v);//进入后处理.
       return;
     }
   }
   luaX_next(ls);
 }
 
-
+//获取里面的单目运算符.
 static UnOpr getunopr (int op) {
   switch (op) {
     case TK_NOT: return OPR_NOT;
     case '-': return OPR_MINUS;
     case '~': return OPR_BNOT;
     case '#': return OPR_LEN;
-    default: return OPR_NOUNOPR;
+    default: return OPR_NOUNOPR; //表示非操作符.
   }
 }
 
@@ -1049,16 +1049,16 @@ static BinOpr subexpr (LexState *ls, expdesc *v, int limit) {
   BinOpr op;
   UnOpr uop;
   enterlevel(ls);
-  uop = getunopr(ls->t.token);
+  uop = getunopr(ls->t.token);//得到单目运算符.
   if (uop != OPR_NOUNOPR) {
     int line = ls->linenumber;
     luaX_next(ls);
     subexpr(ls, v, UNARY_PRIORITY);
     luaK_prefix(ls->fs, uop, v, line);
   }
-  else simpleexp(ls, v);
+  else simpleexp(ls, v);//那么进入简单操作符.,处理完结果的写入v里面.
   /* expand while operators have priorities higher than 'limit' */
-  op = getbinopr(ls->t.token);
+  op = getbinopr(ls->t.token);//找到二元运算.
   while (op != OPR_NOBINOPR && priority[op].left > limit) {
     expdesc v2;
     BinOpr nextop;
@@ -1074,7 +1074,7 @@ static BinOpr subexpr (LexState *ls, expdesc *v, int limit) {
   return op;  /* return first untreated operator */
 }
 
-
+//expr解析一个元素. 获得opt码
 static void expr (LexState *ls, expdesc *v) {
   subexpr(ls, v, 0);
 }
@@ -1387,7 +1387,7 @@ static void test_then_block (LexState *ls, int *escapelist) {
   int jf;  /* instruction to skip 'then' code (if condition is false) */
   luaX_next(ls);  /* skip IF or ELSEIF */
   expr(ls, &v);  /* read condition */
-  checknext(ls, TK_THEN);
+  checknext(ls, TK_THEN);//跳过then关键字.
   if (ls->t.token == TK_GOTO || ls->t.token == TK_BREAK) {
     luaK_goiffalse(ls->fs, &v);  /* will jump to label if condition is true */
     enterblock(fs, &bl, 0);  /* must enter block before 'goto' */
@@ -1416,7 +1416,7 @@ static void test_then_block (LexState *ls, int *escapelist) {
 
 static void ifstat (LexState *ls, int line) {
   /* ifstat -> IF cond THEN block {ELSEIF cond THEN block} [ELSE block] END */
-  FuncState *fs = ls->fs;
+  FuncState *fs = ls->fs; //获取函数栈
   int escapelist = NO_JUMP;  /* exit list for finished parts */
   test_then_block(ls, &escapelist);  /* IF cond THEN block */
   while (ls->t.token == TK_ELSEIF)
@@ -1438,23 +1438,23 @@ static void localfunc (LexState *ls) {
   getlocvar(fs, b.u.info)->startpc = fs->pc;
 }
 
-
+//局部变量的处理.
 static void localstat (LexState *ls) {
   /* stat -> LOCAL NAME {',' NAME} ['=' explist] */
   int nvars = 0;
   int nexps;
-  expdesc e;
+  expdesc e;//保存当前处理的token信息.
   do {
-    new_localvar(ls, str_checkname(ls));
+    new_localvar(ls, str_checkname(ls)); //str_checkname 读取一个token到ls->t.
     nvars++;
-  } while (testnext(ls, ','));
-  if (testnext(ls, '='))
+  } while (testnext(ls, ','));//如果下个token是逗号,那么就继续识别.
+  if (testnext(ls, '=')) //如果下一个是等号.就读取下一个token
     nexps = explist(ls, &e);
   else {
     e.k = VVOID;
     nexps = 0;
   }
-  adjust_assign(ls, nvars, nexps, &e);
+  adjust_assign(ls, nvars, nexps, &e);//nvars 表示多少个变量名.  nexps 表示多少个表达式.
   adjustlocalvars(ls, nvars);
 }
 
@@ -1492,7 +1492,7 @@ static void exprstat (LexState *ls) {
   suffixedexp(ls, &v.v);
   if (ls->t.token == '=' || ls->t.token == ',') { /* stat -> assignment ? */
     v.prev = NULL;
-    assignment(ls, &v, 1);
+    assignment(ls, &v, 1);//进行赋值.
   }
   else {  /* stat -> func */
     check_condition(ls, v.v.k == VCALL, "syntax error");
@@ -1533,7 +1533,7 @@ static void retstat (LexState *ls) {
   testnext(ls, ';');  /* skip optional semicolon */
 }
 
-
+// 把切割到的token进行处理,得到opt码
 static void statement (LexState *ls) {
   int line = ls->linenumber;  /* may be needed for error messages */
   enterlevel(ls);
@@ -1569,7 +1569,7 @@ static void statement (LexState *ls) {
       break;
     }
     case TK_LOCAL: {  /* stat -> localstat */
-      luaX_next(ls);  /* skip LOCAL */
+      luaX_next(ls);  /* skip LOCAL */ //读取下一个token
       if (testnext(ls, TK_FUNCTION))  /* local function? */
         localfunc(ls);
       else
@@ -1605,7 +1605,7 @@ static void statement (LexState *ls) {
 /* }====================================================================== */
 
 
-/*
+/* 启动主进程函数.
 ** compiles the main function, which is a regular vararg function with an
 ** upvalue named LUA_ENV
 */
@@ -1613,7 +1613,7 @@ static void mainfunc (LexState *ls, FuncState *fs) {
   BlockCnt bl;
   expdesc v;
   open_func(ls, fs, &bl);
-  fs->f->is_vararg = 1;  /* main function is always declared vararg */
+  fs->f->is_vararg = 1;  /* main function is always declared vararg */ //表示有调用参数.
   init_exp(&v, VLOCAL, 0);  /* create and... */
   newupvalue(fs, ls->envn, &v);  /* ...set environment upvalue */
   luaX_next(ls);  /* read first token */
@@ -1628,13 +1628,13 @@ LClosure *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
   LexState lexstate;
   FuncState funcstate;
   LClosure *cl = luaF_newLclosure(L, 1);  /* create main closure */
-  setclLvalue(L, L->top, cl);  /* anchor it (to avoid being collected) */
+  setclLvalue(L, L->top, cl);  /* anchor it (to avoid being collected) */  //把闭包放到站上.
   luaD_inctop(L);
   lexstate.h = luaH_new(L);  /* create table for scanner */
-  sethvalue(L, L->top, lexstate.h);  /* anchor it */
+  sethvalue(L, L->top, lexstate.h);  /* anchor it */// 站上放入一个字典.
   luaD_inctop(L);
-  funcstate.f = cl->p = luaF_newproto(L);
-  funcstate.f->source = luaS_new(L, name);  /* create and anchor TString */
+  funcstate.f = cl->p = luaF_newproto(L); //新建一个proto
+  funcstate.f->source = luaS_new(L, name);  /* create and anchor TString */ //脚本名字写入f->source.
   lua_assert(iswhite(funcstate.f));  /* do not need barrier here */
   lexstate.buff = buff;
   lexstate.dyd = dyd;

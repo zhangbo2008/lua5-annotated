@@ -74,7 +74,7 @@ void *luaM_realloc_(lua_State *L, void *block, size_t osize, size_t nsize)
 { // block值得是旧的size对应的那块内存地址!!!!!!!!!!我根据代码反推出来的结论.
   void *newblock;
   global_State *g = G(L);
-  size_t realosize = (block) ? osize : 0;
+  size_t realosize = (block) ? osize : 0;//计算旧的使用内存长度.
   lua_assert((realosize == 0) == (block == NULL));
 #if defined(HARDMEMTESTS)
   if (nsize > realosize && g->gcrunning)

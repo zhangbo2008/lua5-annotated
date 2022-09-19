@@ -3,7 +3,7 @@
 ** Basic library
 ** See Copyright Notice in lua.h
 */
-
+  //  基本的库包函数.
 #define lbaselib_c
 #define LUA_LIB
 
@@ -20,22 +20,22 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
-
+//lua里面的print函数本质就是这个函数的调用.
 static int luaB_print (lua_State *L) {
   int n = lua_gettop(L);  /* number of arguments */
   int i;
-  lua_getglobal(L, "tostring");
-  for (i=1; i<=n; i++) {
+  lua_getglobal(L, "tostring");//压入tostirng函数
+  for (i=1; i<=n; i++) {  //把参数挨个调用tostring函数.函数调用方法使用站的方法. 经典的c里面方法.先压入函数,再压入参数.
     const char *s;
     size_t l;
     lua_pushvalue(L, -1);  /* function to be called */
-    lua_pushvalue(L, i);   /* value to print */
-    lua_call(L, 1, 1);
+    lua_pushvalue(L, i); /* value to print */ //读取函数luaB_print的参数.lua_pushvalue(L, i)就是对应第i个参数. 因为i是整数. 他对应的从ci-fun开始加.
+    lua_call(L, 1, 1);                        //压入函数,再压入参数,然后调用这个lua_call即可. 后面两个1表示1个入参,1个出参.
     s = lua_tolstring(L, -1, &l);  /* get result */
     if (s == NULL)
       return luaL_error(L, "'tostring' must return a string to 'print'");
     if (i>1) lua_writestring("\t", 1);
-    lua_writestring(s, l);
+    lua_writestring(s, l);//些屏幕上就完事了.
     lua_pop(L, 1);  /* pop result */
   }
   lua_writeline();
@@ -43,8 +43,8 @@ static int luaB_print (lua_State *L) {
 }
 
 
-#define SPACECHARS	" \f\n\r\t\v"
-
+#define SPACECHARS	" \f\n\r\t\v"  //空白符.
+//把一个str转化为整数.
 static const char *b_str2int (const char *s, int base, lua_Integer *pn) {
   lua_Unsigned n = 0;
   int neg = 0;
@@ -488,11 +488,11 @@ LUAMOD_API int luaopen_base (lua_State *L) {
   lua_pushglobaltable(L);
   luaL_setfuncs(L, base_funcs, 0);
   /* set global _G */
-  lua_pushvalue(L, -1);
-  lua_setfield(L, -2, "_G");
+  lua_pushvalue(L, -1);//栈顶复制一份再压入栈顶.
+  lua_setfield(L, -2, "_G");//全局变量
   /* set global _VERSION */
-  lua_pushliteral(L, LUA_VERSION);
-  lua_setfield(L, -2, "_VERSION");
-  return 1;
+  lua_pushliteral(L, LUA_VERSION);//压入一个字符串到栈顶.
+  lua_setfield(L, -2, "_VERSION"); //然后把栈顶元素放到L[-2]["_version"]
+  return 1;  //返回1表示返回参数数量.其实就是491行的表.
 }
 

@@ -160,7 +160,7 @@ typedef struct lua_TValue
 #define rttype(o) ((o)->tt_) // tt 是type tag的缩写.
 
 /* tag with no variants (bits 0-3) */
-#define novariant(x) ((x)&0x0F)  //获取tag的基础版本, 因为变化版本bits是4位以上. 看56行.
+#define novariant(x) ((x)&0x0F) //获取tag的基础版本, 因为变化版本bits是4位以上. 看56行.
 
 /* type tag of a TValue (bits 0-3 for tags + variant bits 4-5) */
 // 父类型 + 子类型
@@ -271,13 +271,14 @@ typedef struct lua_TValue
   }
 
 #define setnilvalue(obj) settt_(obj, LUA_TNIL)
-
-#define setfvalue(obj, x) \
+//先把右边obj这个地址,重命名为io.然后设置io的val 和 tt 即可. tt是linghtfunction    /*//设置value这个obj里面的函数field的值为x*/
+#define setfvalue(obj, x) \   
   {                       \
-    TValue *io = (obj);   \
-    val_(io).f = (x);     \
-    settt_(io, LUA_TLCF); \
-  }
+    TValue *io = (obj);   \               
+    val_(io).f = (x);     \           
+    settt_(io, LUA_TLCF); \             
+  }  
+
 
 #define setpvalue(obj, x)           \
   {                                 \
@@ -458,7 +459,7 @@ typedef union UTString
 //   u_char[]       // 实际数据部分
 // }
 //---------------------------------------------------------------------
-typedef struct Udata
+typedef struct Udata // 对上面Value又包装了一层.加了一个分配表.
 {
   CommonHeader;
   lu_byte ttuv_; /* user value's tag */
@@ -471,7 +472,7 @@ typedef struct Udata
 } Udata;
 
 /*
-** Ensures that address after this type is always fully aligned.
+** Ensures that address after this type is always fully aligned. //跟上面字符串一样.还是为了保证内存对齐!
 */
 typedef union UUdata
 {
@@ -483,6 +484,7 @@ typedef union UUdata
 **  Get the address of memory block inside 'Udata'.
 ** (Access to 'ttuv_' ensures that value is really a 'Udata'.)
 */
+//跟上面string理解一样.
 #define getudatamem(u) \
   check_exp(sizeof((u)->ttuv_), (cast(char *, (u)) + sizeof(UUdata)))
 
@@ -526,13 +528,13 @@ typedef struct LocVar
 } LocVar;
 
 /*
-** Function Prototypes
+** Function Prototypes   函数的元数据.
 */
 typedef struct Proto
 {
   CommonHeader;
   lu_byte numparams; /* number of fixed parameters */
-  lu_byte is_vararg;
+  lu_byte is_vararg; //函数是否有入参.
   lu_byte maxstacksize; /* number of registers needed by this function */
   int sizeupvalues;     /* size of 'upvalues' */
   int sizek;            /* size of 'k' */
@@ -566,14 +568,14 @@ typedef struct UpVal UpVal;
   CommonHeader;       \
   lu_byte nupvalues;  \
   GCObject *gclist
-
+//c 闭包函数.
 typedef struct CClosure
 {
   ClosureHeader;
   lua_CFunction f;
   TValue upvalue[1]; /* list of upvalues */
 } CClosure;
-
+// lua 闭包函数
 typedef struct LClosure
 {
   ClosureHeader;
@@ -596,14 +598,14 @@ typedef union Closure
 */
 
 //---------------------------------------------------------------------
-// TValue | TValue + next
+// TValue | TValue + next      说明他里面可以存Tvalue又可以存Tvalue+next
 //---------------------------------------------------------------------
 typedef union TKey
 {
   struct
   {
     TValuefields;
-    int next; /* for chaining (offset for next node) */
+    int next; /* for chaining (offset for next node) */// next存的是偏移量.
   } nk;
   TValue tvk;
 } TKey;

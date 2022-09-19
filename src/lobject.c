@@ -366,7 +366,7 @@ int luaO_utf8esc (char *buff, unsigned long x) {
 #define MAXNUMBER2STR	50
 
 
-/*
+/* 把数字对象转化为字符串.再放入obj里面.
 ** Convert a number object to a string
 */
 void luaO_tostring (lua_State *L, StkId obj) {

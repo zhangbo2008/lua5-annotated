@@ -10,7 +10,7 @@
 
 #include "lobject.h"
 
-
+//这个地方为什么-1呢?????????
 #define sizeCclosure(n)	(cast(int, sizeof(CClosure)) + \
                          cast(int, sizeof(TValue)*((n)-1)))
 
@@ -41,9 +41,9 @@ struct UpVal {
       int touched;  /* mark to avoid cycles with dead threads */
     } open;
     TValue value;  /* the value (when closed) */
-  } u;
+  } u;// u 是一个联合体. open时候存 open字段, close时候存value字段.
 };
-
+// 判断是不是open的
 #define upisopen(up)	((up)->v != &(up)->u.value)
 
 

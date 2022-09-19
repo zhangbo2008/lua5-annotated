@@ -33,7 +33,7 @@ LUAI_DDEF const char *const luaT_typenames_[LUA_TOTALTAGS] = {
   "proto" /* this last case is used for tests only */
 };
 
-
+//创建一堆tag方法,然后把他们都放入G里面.设置不回收他们.
 void luaT_init (lua_State *L) {
   static const char *const luaT_eventname[] = {  /* ORDER TM */
     "__index", "__newindex",
@@ -54,19 +54,19 @@ void luaT_init (lua_State *L) {
 
 /*
 ** function to be used with macro "fasttm": optimized for absence of
-** tag methods
+** tag methods 原方法, 等于自定义的函数. 给一个方法名字ename在evnts里面搜索,然后返回这个函数指针. 等于cpp里面运算符重载.  ltm.c:18 定义了这些名字.
 */
 const TValue *luaT_gettm (Table *events, TMS event, TString *ename) {
   const TValue *tm = luaH_getshortstr(events, ename);
   lua_assert(event <= TM_EQ);
   if (ttisnil(tm)) {  /* no tag method? */
-    events->flags |= cast_byte(1u<<event);  /* cache this fact */
+    events->flags |= cast_byte(1u<<event);  /* cache this fact */ //把结果放到表里面缓存.
     return NULL;
   }
   else return tm;
 }
 
-
+//获得o对象里面的event方法的函数.
 const TValue *luaT_gettmbyobj (lua_State *L, const TValue *o, TMS event) {
   Table *mt;
   switch (ttnov(o)) {
@@ -83,40 +83,40 @@ const TValue *luaT_gettmbyobj (lua_State *L, const TValue *o, TMS event) {
 }
 
 
-/*
+/*  //每一个table都有一个metatable来存元数据.
 ** Return the name of the type of an object. For tables and userdata
 ** with metatable, use their '__name' metafield, if present.
 */
 const char *luaT_objtypename (lua_State *L, const TValue *o) {
-  Table *mt;
+  Table *mt;//一共有2中数据有metatable, 一个是map一个是usrdata
   if ((ttistable(o) && (mt = hvalue(o)->metatable) != NULL) ||
       (ttisfulluserdata(o) && (mt = uvalue(o)->metatable) != NULL)) {
     const TValue *name = luaH_getshortstr(mt, luaS_new(L, "__name"));
     if (ttisstring(name))  /* is '__name' a string? */
-      return getstr(tsvalue(name));  /* use it as type name */
+      return getstr(tsvalue(name));  /* use it as type name */ //如果是字符串,就返回字符串的名字
   }
-  return ttypename(ttnov(o));  /* else use standard type name */
+  return ttypename(ttnov(o));  /* else use standard type name */  //否则就使用type返回.
 }
 
-
+//调用tag method 调用元方法.
 void luaT_callTM (lua_State *L, const TValue *f, const TValue *p1,
                   const TValue *p2, TValue *p3, int hasres) {
-  ptrdiff_t result = savestack(L, p3);
+  ptrdiff_t result = savestack(L, p3);// 计算p3到战地的距离.
   StkId func = L->top;
   setobj2s(L, func, f);  /* push function (assume EXTRA_STACK) */
   setobj2s(L, func + 1, p1);  /* 1st argument */
   setobj2s(L, func + 2, p2);  /* 2nd argument */
   L->top += 3;
   if (!hasres)  /* no result? 'p3' is third argument */
-    setobj2s(L, L->top++, p3);  /* 3rd argument */
+    setobj2s(L, L->top++, p3);  /* 3rd argument */  //第三个参数是作为return值的.
   /* metamethod may yield only when called from Lua code */
-  if (isLua(L->ci))
+  if (isLua(L->ci))//判断是不是lua函数,lua函数都是携程.所以可以yield
     luaD_call(L, func, hasres);
   else
     luaD_callnoyield(L, func, hasres);
   if (hasres) {  /* if has result, move it to its place */
     p3 = restorestack(L, result);
-    setobjs2s(L, p3, --L->top);
+    setobjs2s(L, p3, --L->top);//然后把return值放到栈顶.因为栈顶会防函数.所以--一下.
   }
 }
 
